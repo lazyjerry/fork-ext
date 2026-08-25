@@ -1,6 +1,6 @@
 # Changelog
 
-本檔案記錄 fooook 的版本變更，格式依循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本號依循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
+本檔案記錄 foooork 的版本變更，格式依循 [Keep a Changelog](https://keepachangelog.com/zh-TW/1.1.0/)，版本號依循 [Semantic Versioning](https://semver.org/lang/zh-TW/)。
 
 ## [Unreleased]
 
@@ -8,7 +8,7 @@
 
 ### Added
 
-- 底部 Panel 的 **fooook** 分頁，顯示目前儲存庫的 HEAD、遠端與 `.git/config` 其他設定。
+- 底部 Panel 的 **foooork** 分頁，顯示目前儲存庫的 HEAD、遠端與 `.git/config` 其他設定。
 - HEAD 區塊含 detached 標示、可點擊複製的 HEAD SHA、stash 筆數與最近切換過的分支。
 - 「刷新」按鈕與最後讀取時間；資訊只在按下刷新或 Panel 重新載入時更新。
 - 「在 Fork 中開啟」按鈕，呼叫 `fork -C <repo> open`；依 CLI／應用程式的安裝狀況分別提示安裝步驟、下載連結或不支援的平台。

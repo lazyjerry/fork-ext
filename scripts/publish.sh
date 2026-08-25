@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 發布 fooook 到 VS Code Marketplace。
+# 發布 foooork 到 VS Code Marketplace。
 #
 # 兩階段。版本準備與上傳分開，中間必須有一個 commit，
 # 這樣每個發布出去的版本都對應得到可追溯的 commit。
@@ -179,7 +179,7 @@ echo "==> 安裝 vsix 到本機 VS Code 驗證"
 if command -v code >/dev/null 2>&1; then
   code --install-extension "$vsix" --force
   # bash 3.2.57 的 echo 會在變數展開緊接全形字元時吃掉一個位元組，改用 printf 傳參數。
-  printf '    已安裝 %s，請在底部 Panel 開啟 fooook 分頁確認後再繼續。\n' "$vsix"
+  printf '    已安裝 %s，請在底部 Panel 開啟 foooork 分頁確認後再繼續。\n' "$vsix"
 else
   echo "    找不到 code CLI，請手動安裝 $vsix 驗證（VS Code 內執行 Shell Command: Install 'code' command in PATH）。"
 fi
