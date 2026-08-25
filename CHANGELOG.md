@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-25
+
 ### Changed
 
 - 顯示名稱由 **foooork** 改為 **forrrk**：Marketplace 標題、底部 Panel 分頁名稱與所有通知訊息一併更新。擴充識別碼 `workjerry.fork-ext` 不變。

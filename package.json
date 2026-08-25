@@ -2,7 +2,7 @@
   "name": "fork-ext",
   "displayName": "forrrk",
   "description": "在 VS Code 底部面板檢視目前儲存庫的唯讀 git 資訊，並一鍵用 Fork 開啟。",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "workjerry",
   "license": "Apache-2.0",
   "repository": {
