@@ -41,7 +41,7 @@ Fork 只發行 macOS 與 Windows 版本，其他平台會直接告知不支援�
 
 ## 開發
 
-建置、測試與封裝流程見 [CONTRIBUTING.md](CONTRIBUTING.md)。
+建置、測試與封裝流程見 [CONTRIBUTING.md](CONTRIBUTING.md)，發布流程見 [docs/PUBLISHING.md](docs/PUBLISHING.md)。
 
 ## 授權
 

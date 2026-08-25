@@ -14,6 +14,7 @@ docs/**
 node_modules/**
 eslint.config.mjs
 tsconfig.json
+resources/icon.svg
 *.vsix
 out/src/**
 out/test/**
