@@ -1,4 +1,4 @@
-# foooork
+# forrrk
 
 在 VS Code 底部 Panel 顯示目前儲存庫的唯讀 git 資訊，並一鍵用 [Fork](https://git-fork.com/) 開啟該儲存庫。
 
@@ -6,7 +6,7 @@
 
 ## 功能
 
-- **常駐 Panel**：資訊固定在底部 Panel 的 **foooork** 分頁，與 Terminal、Problems 並列。
+- **常駐 Panel**：資訊固定在底部 Panel 的 **forrrk** 分頁，與 Terminal、Problems 並列。
 - **跟隨作用中編輯器**：從目前開啟的檔案往上找最近的 `.git`，找不到才退回工作區第一個資料夾。多儲存庫的工作區下也指得對。
 - **只在你要求時讀取**：不輪詢、不監看檔案。按下「刷新」才重新定位並重讀，Panel 上標著最後讀取時間。
 - **一鍵開啟 Fork**：呼叫 `fork -C <repo> open`。沒有 CLI 時提示安裝步驟並附上可複製的指令，沒有 Fork 時導向下載頁，不是儲存庫時直接說清楚。
@@ -26,7 +26,7 @@ linked worktree 與 submodule 的 `.git` 是指向別處的文字檔，兩者都
 
 ## 使用方式
 
-在底部 Panel 選擇 **foooork**，或從 Command Palette 執行：
+在底部 Panel 選擇 **forrrk**，或從 Command Palette 執行：
 
 | 指令 | 說明 |
 | --- | --- |

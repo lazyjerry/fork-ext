@@ -14,7 +14,7 @@ export function buildCliInstallHint(appPath: string, platform: NodeJS.Platform):
   if (platform === 'darwin') {
     const cliPath = path.join(appPath, MAC_CLI_RELATIVE_PATH);
     return {
-      message: 'foooork：偵測到 Fork 應用程式，但找不到 fork 命令列工具。',
+      message: 'forrrk：偵測到 Fork 應用程式，但找不到 fork 命令列工具。',
       steps: [
         '開啟 Fork，從選單列選 Fork → Install Command Line Tools。',
         '若該選項無法使用（多半是 /usr/local/bin 權限不足），改用下面的指令手動建立捷徑。',
@@ -27,7 +27,7 @@ export function buildCliInstallHint(appPath: string, platform: NodeJS.Platform):
 
   // Windows 版的命令列工具安裝路徑未經實機查證，寧可不給指令也不杜撰一段可能有害的命令。
   return {
-    message: 'foooork：偵測到 Fork 應用程式，但 fork 指令不在 PATH 中。',
+    message: 'forrrk：偵測到 Fork 應用程式，但 fork 指令不在 PATH 中。',
     steps: [
       '開啟 Fork，在偏好設定中找到 command line tool 的安裝選項並啟用。',
       '重新開啟 VS Code 讓新的 PATH 生效。',
