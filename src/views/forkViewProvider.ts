@@ -92,7 +92,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     const location = this.current?.location ?? null;
     if (!location) {
       const where = this.current?.targetPath ?? '尚未開啟任何資料夾';
-      void vscode.window.showWarningMessage(`foooork：這裡不是 git 儲存庫（${where}）`);
+      void vscode.window.showWarningMessage(`forrrk：這裡不是 git 儲存庫（${where}）`);
       return;
     }
 
@@ -109,7 +109,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         return;
       case 'unsupportedPlatform':
         void vscode.window.showWarningMessage(
-          `foooork：Fork 只提供 macOS 與 Windows 版本，目前平台是 ${availability.platform}。`,
+          `forrrk：Fork 只提供 macOS 與 Windows 版本，目前平台是 ${availability.platform}。`,
         );
         return;
     }
@@ -126,7 +126,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         return;
       case 'copyText':
         await vscode.env.clipboard.writeText(message.text);
-        void vscode.window.setStatusBarMessage(`foooork：已複製${message.label}`, 2000);
+        void vscode.window.setStatusBarMessage(`forrrk：已複製${message.label}`, 2000);
         return;
     }
   }
@@ -136,7 +136,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       await execFileAsync(cliPath, ['-C', repoRoot, 'open'], { timeout: FORK_LAUNCH_TIMEOUT_MS });
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      void vscode.window.showErrorMessage(`foooork：執行 fork 指令失敗（${detail}）`);
+      void vscode.window.showErrorMessage(`forrrk：執行 fork 指令失敗（${detail}）`);
     }
   }
 
@@ -148,7 +148,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     const picked = await vscode.window.showWarningMessage(hint.message, { modal: true, detail }, ...actions);
     if (picked === '複製安裝指令' && hint.copyCommand) {
       await vscode.env.clipboard.writeText(hint.copyCommand);
-      void vscode.window.showInformationMessage('foooork：安裝指令已複製，貼到終端機執行即可。');
+      void vscode.window.showInformationMessage('forrrk：安裝指令已複製，貼到終端機執行即可。');
       return;
     }
     if (picked === '開啟 Fork') {
@@ -158,7 +158,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
 
   private async promptDownload(): Promise<void> {
     const picked = await vscode.window.showWarningMessage(
-      'foooork：找不到 Fork 應用程式。',
+      'forrrk：找不到 Fork 應用程式。',
       {
         modal: true,
         detail: '需要先安裝 Fork 才能開啟儲存庫。安裝後回到本面板按「刷新」，再按一次「在 Fork 中開啟」。',
@@ -196,7 +196,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     content="default-src 'none'; style-src ${webview.cspSource}; script-src 'nonce-${nonce}';">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="${styleUri}" rel="stylesheet">
-  <title>foooork</title>
+  <title>forrrk</title>
 </head>
 <body>
   <div id="app"></div>

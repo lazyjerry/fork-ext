@@ -1,6 +1,6 @@
 # 發布到 VS Code Marketplace
 
-foooork 上架與改版的完整流程。首次發布請從「一、帳號與認證」開始；之後的改版只需執行「二、發布」。
+forrrk 上架與改版的完整流程。首次發布請從「一、帳號與認證」開始；之後的改版只需執行「二、發布」。
 
 整套流程都在 `scripts/publish.sh`，`npm run release` 為入口。這個腳本自帶所有發布前檢查，不依賴任何 repo 外的工具。
 
@@ -76,7 +76,7 @@ npm run release               # 完整發布
 10. 上傳**同一個**已稽核的 VSIX（`vsce publish --packagePath`）
 11. 輪詢 Marketplace 直到版本上架且 SHA-256 相符
 
-第 8 步之後務必實際開一次底部 Panel 的 **foooork** 分頁，確認資訊讀得出來、「在 Fork 中開啟」按得動。腳本能驗證 VSIX 的內容物，但驗不了 UI 是否真的能動。
+第 8 步之後務必實際開一次底部 Panel 的 **forrrk** 分頁，確認資訊讀得出來、「在 Fork 中開啟」按得動。腳本能驗證 VSIX 的內容物，但驗不了 UI 是否真的能動。
 
 發布後 Marketplace 需數分鐘驗證才會上架，狀態見 <https://marketplace.visualstudio.com/manage/publishers/workjerry>。
 
