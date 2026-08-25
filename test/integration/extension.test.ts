@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 
 suite('forrrk 延伸模組', () => {
   test('可啟動並註冊面板檢視與指令', async () => {
-    const extension = vscode.extensions.getExtension('workjerry.fork-ext');
+    const extension = vscode.extensions.getExtension('workjerry.forrrk');
     assert.ok(extension);
 
     await extension.activate();
