@@ -43,7 +43,7 @@ PAT 到期後 publish 會以認證錯誤失敗，重新產一組再 `vsce login`
 
 發布分兩階段，中間隔一個 commit，讓每個發布出去的版本都對應得到可追溯的 commit。
 
-**首次發布 0.1.0 不需要階段一**——版本已經是 0.1.0 且尚未上架，直接跑階段二。
+**擴充名稱一經註冊就永久佔用。** `fork-ext` 這個名稱在一次上傳後被取消／移除，此後公開查詢查不到它（`vsce show workjerry.fork-ext` 回 `undefined`、gallery API 0 筆），但 Marketplace 上傳頁仍會擋下「The extension 'fork-ext' already exists」。unpublish 與刪除都不會把名稱釋出，只能換一個沒用過的 `name`。因此 `name` 現在是 `forrrk`，識別碼 `workjerry.forrrk`；GitHub repo 仍叫 `fork-ext`，兩者不需一致。
 
 **階段一：版本準備（之後的改版）**
 
@@ -102,4 +102,4 @@ npm run release               # 完整發布
 
 - 開發過程中把變更寫進 `CHANGELOG.md` 的 `[Unreleased]` 段落即可，搬到版本號下由 `npm run release <bump>` 處理。
 - `README.md` 整份就是 Marketplace 頁面內容，維持使用者導向。開發相關說明放 `CONTRIBUTING.md`（已由 `.vscodeignore` 排除，不進 VSIX）。
-- 要下架某個版本用 `npx vsce unpublish workjerry.fork-ext@<version>`；下架整個擴充是 `npx vsce unpublish workjerry.fork-ext`，**擴充名稱會被永久保留、無法重新使用**。
+- 要下架某個版本用 `npx vsce unpublish workjerry.forrrk@<version>`；下架整個擴充是 `npx vsce unpublish workjerry.forrrk`，**擴充名稱會被永久保留、無法重新使用**。

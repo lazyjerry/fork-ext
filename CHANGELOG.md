@@ -4,6 +4,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 擴充識別碼由 `workjerry.fork-ext` 改為 `workjerry.forrrk`（`package.json` 的 `name`）。`fork-ext` 這個名稱在一次被取消的上傳後遭 Marketplace 永久佔用，無法釋出，只能換名。GitHub repo 仍是 `fork-ext`。
+- 從 `workjerry.fork-ext` 升級不會自動接續：請先移除舊的擴充，再安裝 `workjerry.forrrk`。
+
 ## [0.1.1] - 2026-08-25
 
 ### Changed
