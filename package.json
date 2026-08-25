@@ -1,6 +1,6 @@
 {
   "name": "fork-ext",
-  "displayName": "fooook",
+  "displayName": "foooork",
   "description": "在 VS Code 底部面板檢視目前儲存庫的唯讀 git 資訊，並一鍵用 Fork 開啟。",
   "version": "0.1.0",
   "publisher": "workjerry",
@@ -37,7 +37,7 @@
       "panel": [
         {
           "id": "fork",
-          "title": "fooook",
+          "title": "foooork",
           "icon": "resources/fork.svg"
         }
       ]
@@ -47,9 +47,9 @@
         {
           "type": "webview",
           "id": "fork.info",
-          "name": "fooook",
+          "name": "foooork",
           "icon": "resources/fork.svg",
-          "contextualTitle": "fooook"
+          "contextualTitle": "foooork"
         }
       ]
     },
