@@ -1,0 +1,94 @@
+{
+  "name": "fork-ext",
+  "displayName": "fooook",
+  "description": "在 VS Code 底部面板檢視目前儲存庫的唯讀 git 資訊，並一鍵用 Fork 開啟。",
+  "version": "0.1.0",
+  "publisher": "workjerry",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lazyjerry/fork-ext.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lazyjerry/fork-ext/issues"
+  },
+  "homepage": "https://github.com/lazyjerry/fork-ext#readme",
+  "keywords": [
+    "git",
+    "fork",
+    "repository",
+    "branch",
+    "scm"
+  ],
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "fork",
+          "title": "fooook",
+          "icon": "resources/fork.svg"
+        }
+      ]
+    },
+    "views": {
+      "fork": [
+        {
+          "type": "webview",
+          "id": "fork.info",
+          "name": "fooook",
+          "icon": "resources/fork.svg",
+          "contextualTitle": "fooook"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "fork.refresh",
+        "title": "Fork: Refresh Repository Info"
+      },
+      {
+        "command": "fork.openInFork",
+        "title": "Fork: Open Current Repository in Fork"
+      }
+    ]
+  },
+  "scripts": {
+    "typecheck": "tsc -p . --noEmit",
+    "build:extension": "esbuild src/extension.ts --bundle --platform=node --format=cjs --external:vscode --outfile=out/extension.js --sourcemap",
+    "build:webview": "esbuild src/webview/main.ts --bundle --format=iife --platform=browser --target=es2022 --outfile=media/main.js --sourcemap",
+    "build:tests": "tsc -p .",
+    "build": "npm run typecheck && npm run build:extension && npm run build:webview",
+    "vscode:prepublish": "npm run build",
+    "lint": "eslint .",
+    "test:unit": "npm run build:tests && mocha --ui tdd --timeout 10000 \"out/test/unit/**/*.test.js\"",
+    "test:integration": "node ./out/test/runTest.js",
+    "test": "npm run build && npm run test:unit && npm run test:integration",
+    "check": "npm run lint && npm run test",
+    "package:vsix": "npm run check && vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/mocha": "^10.0.0",
+    "@types/node": "^24.0.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/test-electron": "^3.1.0",
+    "@vscode/vsce": "^3.6.0",
+    "esbuild": "^0.25.0",
+    "eslint": "^9.0.0",
+    "glob": "^11.0.0",
+    "mocha": "^11.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0"
+  }
+}
