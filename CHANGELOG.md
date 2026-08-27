@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-08-27
+
 ### Changed
 
 - 面板工具列三個按鈕（刷新、Auto Push、在 Fork 中開啟）改為圖示按鈕，各自帶實心底色與邊框；名稱移到 tooltip 與 `aria-label`。
