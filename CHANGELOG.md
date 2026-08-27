@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-08-27
+
 ### Added
 
 - **專案卡片**：讀 `package.json`／`pyproject.toml`／`Cargo.toml`／`composer.json`／`deno.json`／`go.mod` 的名稱、版本與描述，加上 LICENSE 首行推斷的授權、分支數、標籤數、packfile 佔用與上次 git 操作時間。
