@@ -61,6 +61,10 @@
       {
         "command": "fork.openInFork",
         "title": "Fork: Open Current Repository in Fork"
+      },
+      {
+        "command": "fork.gitAutoPush",
+        "title": "Fork: Run git-auto-push -a"
       }
     ]
   },

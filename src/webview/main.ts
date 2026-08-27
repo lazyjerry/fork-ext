@@ -23,6 +23,9 @@ const handlers: RenderHandlers = {
   onOpenInFork() {
     post({ type: 'openInFork' });
   },
+  onGitAutoPush() {
+    post({ type: 'gitAutoPush' });
+  },
   onCopy(text, label) {
     post({ type: 'copyText', text, label });
   },

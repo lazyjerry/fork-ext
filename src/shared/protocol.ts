@@ -7,6 +7,7 @@ export type ClientMessage =
   | { type: 'ready' }
   | { type: 'refresh' }
   | { type: 'openInFork' }
+  | { type: 'gitAutoPush' }
   | { type: 'copyText'; text: string; label: string };
 
 export type HostMessage =
