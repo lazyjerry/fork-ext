@@ -8,6 +8,11 @@ import * as vscode from 'vscode';
 import { buildCliInstallHint } from '../core/fork/installHint';
 import { FORK_DOWNLOAD_URL, locateFork } from '../core/fork/locateFork';
 import { discoverRepo } from '../core/git/discoverRepo';
+import {
+  GIT_AUTO_PUSH_INSTALL_COMMAND,
+  GIT_AUTO_PUSH_REPO_URL,
+  locateGitAutoPush,
+} from '../core/gitAutoPush/locateGitAutoPush';
 import { readRepoInfo } from '../core/git/readRepoInfo';
 import type { RepoLocation } from '../core/git/types';
 import type { ClientMessage, HostMessage } from '../shared/protocol';
@@ -29,6 +34,8 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
    * 所以另外記住最後一個真正的檔案編輯器，否則按下面板上的「刷新」就跟不到編輯器了。
    */
   private lastFileEditorDirectory: string | null = null;
+  /** 上一次跑 git-auto-push 的終端機；每次執行都開新的，舊的順手關掉，避免堆一排。 */
+  private autoPushTerminal: vscode.Terminal | undefined;
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor(private readonly extensionUri: vscode.Uri) {
@@ -72,6 +79,8 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       disposable.dispose();
     }
     this.disposables.length = 0;
+    this.autoPushTerminal?.dispose();
+    this.autoPushTerminal = undefined;
   }
 
   /** 以「當下的作用中編輯器」重新定位 repo 並重讀。只在使用者要求時發生。 */
@@ -115,6 +124,39 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     }
   }
 
+  /**
+   * 在整合終端機執行 `git-auto-push -a`。
+   * 這是互動式 bash 腳本（選單、AI 產生 commit 訊息、彩色輸出），
+   * 不能像開 Fork 那樣藏在背景 execFile，否則一提問就卡死。
+   */
+  async gitAutoPush(): Promise<void> {
+    if (!this.current) {
+      await this.refresh();
+    }
+
+    const location = this.current?.location ?? null;
+    if (!location) {
+      const where = this.current?.targetPath ?? '尚未開啟任何資料夾';
+      void vscode.window.showWarningMessage(`forrrk：這裡不是 git 儲存庫（${where}）`);
+      return;
+    }
+
+    const availability = await locateGitAutoPush({ homeDir: os.homedir() });
+    switch (availability.kind) {
+      case 'ready':
+        this.runInTerminal(availability.cliPath, location.repoRoot);
+        return;
+      case 'missing':
+        await this.promptGitAutoPushInstall();
+        return;
+      case 'unsupportedPlatform':
+        void vscode.window.showWarningMessage(
+          `forrrk：git-auto-push 是 bash 腳本，不支援 ${availability.platform} 原生終端機。`,
+        );
+        return;
+    }
+  }
+
   private async handleMessage(message: ClientMessage): Promise<void> {
     switch (message.type) {
       case 'ready':
@@ -123,6 +165,9 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         return;
       case 'openInFork':
         await this.openInFork();
+        return;
+      case 'gitAutoPush':
+        await this.gitAutoPush();
         return;
       case 'copyText':
         await vscode.env.clipboard.writeText(message.text);
@@ -137,6 +182,40 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       void vscode.window.showErrorMessage(`forrrk：執行 fork 指令失敗（${detail}）`);
+    }
+  }
+
+  private runInTerminal(cliPath: string, repoRoot: string): void {
+    this.autoPushTerminal?.dispose();
+    const terminal = vscode.window.createTerminal({ name: 'git-auto-push', cwd: repoRoot });
+    this.autoPushTerminal = terminal;
+    terminal.show();
+    // 用絕對路徑：~/.local/bin 常常不在終端機的 PATH 裡。單引號包住，路徑含空白也安全。
+    terminal.sendText(`'${cliPath.replace(/'/g, `'\\''`)}' -a`);
+  }
+
+  private async promptGitAutoPushInstall(): Promise<void> {
+    const picked = await vscode.window.showWarningMessage(
+      'forrrk：找不到 git-auto-push 指令。',
+      {
+        modal: true,
+        detail: [
+          '1. 在終端機執行下面的安裝指令（預設裝到 ~/.local/bin）。',
+          '2. 裝好之後再按一次「Auto Push」。',
+          '',
+          GIT_AUTO_PUSH_INSTALL_COMMAND,
+        ].join('\n'),
+      },
+      '複製安裝指令',
+      '前往 GitHub',
+    );
+    if (picked === '複製安裝指令') {
+      await vscode.env.clipboard.writeText(GIT_AUTO_PUSH_INSTALL_COMMAND);
+      void vscode.window.showInformationMessage('forrrk：安裝指令已複製，貼到終端機執行即可。');
+      return;
+    }
+    if (picked === '前往 GitHub') {
+      await vscode.env.openExternal(vscode.Uri.parse(GIT_AUTO_PUSH_REPO_URL));
     }
   }
 

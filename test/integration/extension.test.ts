@@ -12,6 +12,7 @@ suite('forrrk 延伸模組', () => {
     const commands = await vscode.commands.getCommands(true);
     assert.ok(commands.includes('fork.refresh'));
     assert.ok(commands.includes('fork.openInFork'));
+    assert.ok(commands.includes('fork.gitAutoPush'));
 
     const contributions = extension.packageJSON.contributes as {
       views?: Record<string, Array<{ id: string }>>;

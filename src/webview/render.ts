@@ -13,6 +13,7 @@ export interface ViewState {
 export interface RenderHandlers {
   onRefresh(): void;
   onOpenInFork(): void;
+  onGitAutoPush(): void;
   onCopy(text: string, label: string): void;
 }
 
@@ -45,8 +46,11 @@ function renderToolbar(state: ViewState, handlers: RenderHandlers): HTMLElement 
   bar.append(info);
 
   const actions = el('div', 'toolbar-actions');
-  actions.append(button('刷新', 'ghost', handlers.onRefresh));
-  actions.append(button('在 Fork 中開啟', 'primary', handlers.onOpenInFork));
+  actions.append(iconButton('刷新', 'refresh', 'solid', handlers.onRefresh, '刷新'));
+  actions.append(
+    iconButton('Auto Push', 'push', 'solid', handlers.onGitAutoPush, 'Auto Push：在終端機執行 git-auto-push -a'),
+  );
+  actions.append(iconButton('在 Fork 中開啟', 'fork', 'primary', handlers.onOpenInFork, '在 Fork 中開啟'));
   bar.append(actions);
 
   return bar;
@@ -149,7 +153,7 @@ function renderRemote(remote: RemoteInfo, repo: RepoInfo): HTMLElement {
 }
 
 function renderConfig(groups: ConfigGroup[]): HTMLElement {
-  const card = section('其他設定');
+  const card = section('其他設定', 'wide');
 
   if (groups.length === 0) {
     card.append(el('div', 'muted', '沒有其他設定'));
@@ -187,8 +191,8 @@ function renderConfigGroup(group: ConfigGroup): HTMLElement {
   return box;
 }
 
-function section(title: string): HTMLElement {
-  const card = el('section', 'card');
+function section(title: string, extraClass = ''): HTMLElement {
+  const card = el('section', extraClass ? `card ${extraClass}` : 'card');
   card.append(el('div', 'card-title', title));
   return card;
 }
@@ -199,6 +203,75 @@ function button(label: string, className: string, onClick: () => void): HTMLButt
   element.textContent = label;
   element.addEventListener('click', onClick);
   return element;
+}
+
+/** 只有圖示的按鈕：label 走 aria-label，讀螢幕與測試都還找得到它。 */
+function iconButton(
+  label: string,
+  icon: IconName,
+  className: string,
+  onClick: () => void,
+  tooltip: string,
+): HTMLButtonElement {
+  const element = document.createElement('button');
+  element.className = `icon-button ${className}`;
+  element.setAttribute('aria-label', label);
+  element.title = tooltip;
+  element.append(iconElement(icon));
+  element.addEventListener('click', onClick);
+  return element;
+}
+
+const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
+
+type IconName = 'refresh' | 'push' | 'fork';
+
+interface IconShape {
+  tag: 'path' | 'circle';
+  attributes: Record<string, string>;
+}
+
+// 線條圖示，一律 24x24、stroke 走 currentColor，跟著按鈕文字色與主題走。
+const ICONS: Record<IconName, IconShape[]> = {
+  refresh: [
+    { tag: 'path', attributes: { d: 'M20.5 8.5A8.5 8.5 0 0 0 4.2 10.7' } },
+    { tag: 'path', attributes: { d: 'M3.5 15.5a8.5 8.5 0 0 0 16.3-2.2' } },
+    { tag: 'path', attributes: { d: 'M20.5 3.5v5h-5' } },
+    { tag: 'path', attributes: { d: 'M3.5 20.5v-5h5' } },
+  ],
+  push: [
+    { tag: 'path', attributes: { d: 'M12 20V5' } },
+    { tag: 'path', attributes: { d: 'M6 11l6-6 6 6' } },
+    { tag: 'path', attributes: { d: 'M4 3.5h16' } },
+  ],
+  // 與 Panel 分頁圖示同一組線條，兩處看起來是同一個東西。
+  fork: [
+    { tag: 'circle', attributes: { cx: '6', cy: '19', r: '2.4' } },
+    { tag: 'circle', attributes: { cx: '6', cy: '5', r: '2.4' } },
+    { tag: 'circle', attributes: { cx: '18', cy: '8', r: '2.4' } },
+    { tag: 'path', attributes: { d: 'M6 7.4v9.2' } },
+    { tag: 'path', attributes: { d: 'M18 10.4c0 3.2-2.6 4.6-6 5.2' } },
+  ],
+};
+
+function iconElement(name: IconName): SVGElement {
+  const svg = document.createElementNS(SVG_NAMESPACE, 'svg') as SVGElement;
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '1.9');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+  svg.setAttribute('aria-hidden', 'true');
+
+  for (const shape of ICONS[name]) {
+    const node = document.createElementNS(SVG_NAMESPACE, shape.tag) as SVGElement;
+    for (const [key, value] of Object.entries(shape.attributes)) {
+      node.setAttribute(key, value);
+    }
+    svg.append(node);
+  }
+  return svg;
 }
 
 function el(tag: string, className: string, text?: string): HTMLElement {

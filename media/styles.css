@@ -28,7 +28,7 @@ body {
   justify-content: space-between;
   gap: var(--gap);
   flex-wrap: wrap;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--vscode-panel-border);
   background: var(--vscode-editor-background);
 }
@@ -81,47 +81,83 @@ button.primary:hover {
   background: var(--vscode-button-hoverBackground);
 }
 
-button.ghost {
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
+/* 只有圖示的按鈕：正方形、實心底色加一圈邊框，在資訊列裡才看得出是可按的。 */
+button.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
 }
 
-button.ghost:hover {
+button.icon-button svg {
+  width: 15px;
+  height: 15px;
+  display: block;
+}
+
+button.solid {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border-color: var(--vscode-focusBorder);
+}
+
+button.solid:hover {
   background: var(--vscode-button-secondaryHoverBackground);
 }
 
+button.primary {
+  border-color: var(--vscode-focusBorder);
+}
+
+/* 兩欄卡片；面板拉窄到放不下兩欄時退回一欄。 */
 .content {
   flex: 1;
   overflow-y: auto;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  gap: 8px;
+}
+
+@media (max-width: 560px) {
+  .content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 警告與設定區內容本來就寬，讓它們橫跨整列。 */
+.warning,
+.card.wide {
+  grid-column: 1 / -1;
 }
 
 .card {
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--radius);
-  padding: 10px 12px;
+  padding: 7px 9px;
+  min-width: 0;
 }
 
 .card-title {
   color: var(--vscode-descriptionForeground);
-  font-size: 0.85em;
+  font-size: 0.8em;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 8px;
+  margin-bottom: 5px;
 }
 
 .head-main {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .branch {
-  font-size: 1.25em;
+  font-size: 1.1em;
   font-weight: 600;
 }
 
@@ -159,7 +195,7 @@ button.sha {
 }
 
 .recent {
-  margin-top: 8px;
+  margin-top: 5px;
   color: var(--vscode-descriptionForeground);
   font-size: 0.9em;
 }
@@ -179,13 +215,13 @@ button.sha {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 5px;
 }
 
 .remote-headline {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -204,27 +240,28 @@ button.sha {
 
 .config-groups {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: var(--gap);
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
 }
 
 .group {
   border: 1px solid var(--vscode-panel-border);
   border-radius: var(--radius);
-  padding: 8px 10px;
+  padding: 6px 8px;
+  min-width: 0;
   background: var(--vscode-editorWidget-background);
 }
 
 .group-title {
   font-family: var(--vscode-editor-font-family);
   font-weight: 600;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .entries {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 3px 10px;
+  gap: 2px 8px;
   margin: 0;
 }
 
