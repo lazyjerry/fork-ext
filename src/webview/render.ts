@@ -13,6 +13,7 @@ export interface ViewState {
 export interface RenderHandlers {
   onRefresh(): void;
   onOpenInFork(): void;
+  onOpenFolder(): void;
   onGitAutoPush(): void;
   onCopy(text: string, label: string): void;
 }
@@ -49,6 +50,9 @@ function renderToolbar(state: ViewState, handlers: RenderHandlers): HTMLElement 
   actions.append(iconButton('刷新', 'refresh', 'solid', handlers.onRefresh, '刷新'));
   actions.append(
     iconButton('Auto Push', 'push', 'solid', handlers.onGitAutoPush, 'Auto Push：在終端機執行 git-auto-push -a'),
+  );
+  actions.append(
+    iconButton('開啟資料夾', 'folder', 'solid', handlers.onOpenFolder, '開啟資料夾：在檔案管理員開啟儲存庫根目錄'),
   );
   actions.append(iconButton('在 Fork 中開啟', 'fork', 'primary', handlers.onOpenInFork, '在 Fork 中開啟'));
   bar.append(actions);
@@ -224,7 +228,7 @@ function iconButton(
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
-type IconName = 'refresh' | 'push' | 'fork';
+type IconName = 'refresh' | 'push' | 'folder' | 'fork';
 
 interface IconShape {
   tag: 'path' | 'circle';
@@ -243,6 +247,9 @@ const ICONS: Record<IconName, IconShape[]> = {
     { tag: 'path', attributes: { d: 'M12 20V5' } },
     { tag: 'path', attributes: { d: 'M6 11l6-6 6 6' } },
     { tag: 'path', attributes: { d: 'M4 3.5h16' } },
+  ],
+  folder: [
+    { tag: 'path', attributes: { d: 'M3.5 18.4V6.6c0-.9.7-1.6 1.6-1.6h3.6l2.2 2.6h7.6c.9 0 1.6.7 1.6 1.6v9.2c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z' } },
   ],
   // 與 Panel 分頁圖示同一組線條，兩處看起來是同一個東西。
   fork: [

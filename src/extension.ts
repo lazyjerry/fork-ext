@@ -10,6 +10,7 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand('fork.refresh', () => provider.refresh()),
     vscode.commands.registerCommand('fork.openInFork', () => provider.openInFork()),
     vscode.commands.registerCommand('fork.gitAutoPush', () => provider.gitAutoPush()),
+    vscode.commands.registerCommand('fork.openFolder', () => provider.openFolder()),
     provider,
   );
 }

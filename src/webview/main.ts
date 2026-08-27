@@ -23,6 +23,9 @@ const handlers: RenderHandlers = {
   onOpenInFork() {
     post({ type: 'openInFork' });
   },
+  onOpenFolder() {
+    post({ type: 'openFolder' });
+  },
   onGitAutoPush() {
     post({ type: 'gitAutoPush' });
   },

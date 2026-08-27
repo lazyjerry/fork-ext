@@ -124,6 +124,22 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     }
   }
 
+  /** 用作業系統的檔案管理員開啟儲存庫根目錄。 */
+  async openFolder(): Promise<void> {
+    if (!this.current) {
+      await this.refresh();
+    }
+
+    const location = this.current?.location ?? null;
+    if (!location) {
+      const where = this.current?.targetPath ?? '尚未開啟任何資料夾';
+      void vscode.window.showWarningMessage(`forrrk：這裡不是 git 儲存庫（${where}）`);
+      return;
+    }
+
+    await vscode.env.openExternal(vscode.Uri.file(location.repoRoot));
+  }
+
   /**
    * 在整合終端機執行 `git-auto-push -a`。
    * 這是互動式 bash 腳本（選單、AI 產生 commit 訊息、彩色輸出），
@@ -165,6 +181,9 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         return;
       case 'openInFork':
         await this.openInFork();
+        return;
+      case 'openFolder':
+        await this.openFolder();
         return;
       case 'gitAutoPush':
         await this.gitAutoPush();

@@ -65,6 +65,10 @@
       {
         "command": "fork.gitAutoPush",
         "title": "Fork: Run git-auto-push -a"
+      },
+      {
+        "command": "fork.openFolder",
+        "title": "Fork: Open Repository Folder"
       }
     ]
   },
