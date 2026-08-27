@@ -8,11 +8,12 @@
 
 ### Changed
 
-- 面板工具列三個按鈕（刷新、Auto Push、在 Fork 中開啟）改為圖示按鈕，各自帶實心底色與邊框；名稱移到 tooltip 與 `aria-label`。
+- 面板工具列的按鈕改為圖示按鈕，各自帶實心底色與邊框；名稱移到 tooltip 與 `aria-label`。
 - 資訊區由單欄改為兩欄卡片並整體收緊間距；「其他設定」橫跨整列，面板寬度不足 560px 時自動退回一欄。
 
 ### Added
 
+- 「開啟資料夾」按鈕與指令 `Fork: Open Repository Folder`：用作業系統的檔案管理員開啟儲存庫根目錄。
 - 「Auto Push」按鈕與指令 `Fork: Run git-auto-push -a`：在整合終端機以儲存庫根目錄執行 [git-auto-push](https://github.com/lazyjerry/git-auto-push) 的 `-a` 全自動模式（add → commit → push）。偵測時除了 PATH 也會找 `~/.local/bin` 與 `/usr/local/bin`；沒安裝時提示安裝指令並可複製或前往 GitHub。Windows 原生終端機不支援。
 
 ## [0.1.2] - 2026-08-25

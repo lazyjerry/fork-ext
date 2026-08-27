@@ -18,6 +18,7 @@ suite('webview render', () => {
     handlers = {
       onRefresh: () => calls.push('refresh'),
       onOpenInFork: () => calls.push('open'),
+      onOpenFolder: () => calls.push('folder'),
       onGitAutoPush: () => calls.push('autoPush'),
       onCopy: (text, label) => calls.push(`copy:${label}:${text}`),
     };
@@ -40,6 +41,7 @@ suite('webview render', () => {
     assert.equal(findOne(root, 'empty-path')?.textContent, '/tmp/plain');
     assert.ok(findButton(root, '刷新'));
     assert.ok(findButton(root, 'Auto Push'));
+    assert.ok(findButton(root, '開啟資料夾'));
     assert.ok(findButton(root, '在 Fork 中開啟'));
   });
 
@@ -104,15 +106,16 @@ suite('webview render', () => {
     findButton(root, '刷新')?.click();
     findButton(root, '在 Fork 中開啟')?.click();
     findButton(root, 'Auto Push')?.click();
+    findButton(root, '開啟資料夾')?.click();
     findOne(root, 'sha')?.click();
 
-    assert.deepEqual(calls, ['refresh', 'open', 'autoPush', `copy:完整 SHA:${SHA}`]);
+    assert.deepEqual(calls, ['refresh', 'open', 'autoPush', 'folder', `copy:完整 SHA:${SHA}`]);
   });
 
   test('工具列按鈕只放圖示，名稱走 aria-label 與 title', () => {
     const root = draw({ repo: repo() });
 
-    for (const label of ['刷新', 'Auto Push', '在 Fork 中開啟']) {
+    for (const label of ['刷新', 'Auto Push', '開啟資料夾', '在 Fork 中開啟']) {
       const element = findButton(root, label);
       assert.equal(element?.textContent, '', `${label} 不該有文字`);
       assert.equal(element?.children[0]?.tagName, 'svg', `${label} 應該有圖示`);
