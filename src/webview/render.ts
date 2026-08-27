@@ -78,24 +78,19 @@ function renderContent(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
   for (const warning of repo.warnings) {
     content.append(el('div', 'warning', warning));
   }
+  // 三張窄卡（HEAD 與遠端／專案／最近提交）＋ 一張滿版的設定卡。
+  // 卡片數固定，寬面板才不會出現「第一列三張、第二列兩張」那種右半邊全空的版面。
   content.append(renderHead(repo, handlers));
-  content.append(renderProject(repo));
+  content.append(renderProject(repo, handlers));
   content.append(renderActivity(repo));
-  if (repo.readme) {
-    content.append(renderReadme(repo.readme, handlers));
-  }
-  content.append(renderRemotes(repo));
-  const environment = renderEnvironment(repo);
-  if (environment) {
-    content.append(environment);
-  }
   content.append(renderConfig(repo.configGroups));
 
   return content;
 }
 
+/** HEAD 與遠端同一張卡：upstream 的「追蹤 main」講的就是上面那個分支，拆兩張卡反而要對照著看。 */
 function renderHead(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
-  const card = section('HEAD', '目前狀態');
+  const card = section('HEAD', '目前狀態與遠端');
   const main = el('div', 'head-main');
 
   if (repo.detached) {
@@ -130,23 +125,24 @@ function renderHead(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
     card.append(recent);
   }
 
+  card.append(renderRemotes(repo));
   return card;
 }
 
 function renderRemotes(repo: RepoInfo): HTMLElement {
-  const card = section('遠端', 'Remotes');
+  const box = subsection('遠端', 'Remotes');
 
   if (repo.remotes.length === 0) {
-    card.append(el('div', 'muted', '未設定遠端'));
-    return card;
+    box.append(el('div', 'muted', '未設定遠端'));
+    return box;
   }
 
   const list = el('ul', 'remotes');
   for (const remote of repo.remotes) {
     list.append(renderRemote(remote, repo));
   }
-  card.append(list);
-  return card;
+  box.append(list);
+  return box;
 }
 
 function renderRemote(remote: RemoteInfo, repo: RepoInfo): HTMLElement {
@@ -154,17 +150,46 @@ function renderRemote(remote: RemoteInfo, repo: RepoInfo): HTMLElement {
 
   const headline = el('div', 'remote-headline');
   headline.append(el('span', 'badge name', remote.name));
-  headline.append(el('span', 'url', remote.url ?? '（未設定 url）'));
+  if (repo.upstream && repo.upstream.remote === remote.name) {
+    headline.append(el('span', 'sub upstream', `↳ 追蹤 ${repo.upstream.branch}`));
+  }
   item.append(headline);
 
+  const { host, path } = splitRemoteUrl(remote.url);
+  const rows: Array<{ label: string; sub: string; value: string }> = [];
+  if (host) {
+    rows.push({ label: '網域', sub: 'Host', value: host });
+  }
+  rows.push({ label: '路徑', sub: 'Path', value: path });
   if (remote.pushUrl && remote.pushUrl !== remote.url) {
-    item.append(el('div', 'sub', `push: ${remote.pushUrl}`));
+    rows.push({ label: 'Push 位址', sub: 'Push URL', value: remote.pushUrl });
   }
-  if (repo.upstream && repo.upstream.remote === remote.name) {
-    item.append(el('div', 'sub upstream', `↳ 追蹤 ${repo.upstream.branch}`));
-  }
+  item.append(statList(rows));
 
   return item;
+}
+
+/**
+ * 遠端網址拆成網域與路徑兩欄。整串塞一格時 word-break 會把它折成兩三行，
+ * 而真正要看的其實是「在哪個主機」與「哪個 owner/repo」這兩件事。
+ * 認得 scp 形式（git@host:owner/repo.git）與帶 scheme 的 URL，都不認得就整串當路徑（本機路徑）。
+ */
+function splitRemoteUrl(url: string | undefined): { host: string | null; path: string } {
+  if (!url) {
+    return { host: null, path: '（未設定 url）' };
+  }
+
+  const scpLike = /^(?:[^/@]+@)?([^/:]+):(?!\/)(.+)$/.exec(url);
+  if (scpLike) {
+    return { host: scpLike[1], path: scpLike[2] };
+  }
+
+  const withScheme = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/(?:[^@/]*@)?([^/]+)(\/.*)?$/.exec(url);
+  if (withScheme) {
+    return { host: withScheme[1], path: (withScheme[2] ?? '/').replace(/^\//, '') || '/' };
+  }
+
+  return { host: null, path: url };
 }
 
 function renderConfig(groups: ConfigGroup[]): HTMLElement {
@@ -223,6 +248,16 @@ function section(title: string, subtitle: string, extraClass = ''): HTMLElement 
   return card;
 }
 
+/** 一張卡裡的第二段，標題比卡片標題再小一階，靠一條分隔線跟上一段斷開。 */
+function subsection(title: string, subtitle: string): HTMLElement {
+  const box = el('div', 'subsection');
+  const heading = el('div', 'subsection-title');
+  heading.append(el('span', 'title-main', title));
+  heading.append(el('span', 'title-sub', subtitle));
+  box.append(heading);
+  return box;
+}
+
 /** 中英對照的欄位清單，沿用「其他設定」那組斑馬紋樣式。 */
 function statList(rows: Array<{ label: string; sub: string; value: string | HTMLElement }>): HTMLElement {
   const list = el('dl', 'entries');
@@ -243,7 +278,8 @@ function statList(rows: Array<{ label: string; sub: string; value: string | HTML
   return list;
 }
 
-function renderProject(repo: RepoInfo): HTMLElement {
+/** 專案宣告、README 摘要與環境同一張卡：三者講的都是「這個專案是什麼」。 */
+function renderProject(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
   const card = section('專案', 'Project');
   const { project, scale } = repo;
 
@@ -272,10 +308,14 @@ function renderProject(repo: RepoInfo): HTMLElement {
     sub: 'Last git activity',
     value: scale.lastGitOperationAt === null ? '未知' : formatMoment(scale.lastGitOperationAt),
   });
+  rows.push(...environmentRows(repo));
   card.append(statList(rows));
 
   if (!project) {
     card.append(el('div', 'hint', '沒有找到 package.json 之類的專案宣告檔'));
+  }
+  if (repo.readme) {
+    card.append(renderReadme(repo.readme, project?.name ?? null, handlers));
   }
   return card;
 }
@@ -328,25 +368,30 @@ function renderActivity(repo: RepoInfo): HTMLElement {
   return card;
 }
 
-function renderReadme(readme: NonNullable<RepoInfo['readme']>, handlers: RenderHandlers): HTMLElement {
-  const card = section('README', '專案說明');
+function renderReadme(
+  readme: NonNullable<RepoInfo['readme']>,
+  projectName: string | null,
+  handlers: RenderHandlers,
+): HTMLElement {
+  const box = subsection('README', '專案說明');
 
-  if (readme.title) {
-    card.append(el('div', 'readme-title', readme.title));
+  // README 的首個標題多半就是專案名，同一張卡裡再標一次是重複。
+  if (readme.title && readme.title !== projectName) {
+    box.append(el('div', 'readme-title', readme.title));
   }
   if (readme.body) {
-    card.append(el('div', 'readme-body', readme.body));
+    box.append(el('div', 'readme-body', readme.body));
   } else {
-    card.append(el('div', 'muted', '找不到可摘要的段落'));
+    box.append(el('div', 'muted', '找不到可摘要的段落'));
   }
 
   const open = button(`開啟 ${readme.fileName}`, 'link', () => handlers.onOpenFile(readme.path));
   open.title = readme.path;
-  card.append(open);
-  return card;
+  box.append(open);
+  return box;
 }
 
-function renderEnvironment(repo: RepoInfo): HTMLElement | null {
+function environmentRows(repo: RepoInfo): Array<{ label: string; sub: string; value: string }> {
   const { submodules, worktrees, hooks, lfs, workflows } = repo.environment;
   const rows: Array<{ label: string; sub: string; value: string }> = [];
 
@@ -365,13 +410,7 @@ function renderEnvironment(repo: RepoInfo): HTMLElement | null {
   if (workflows.length > 0) {
     rows.push({ label: 'CI 流程', sub: 'Workflows', value: workflows.join('、') });
   }
-  if (rows.length === 0) {
-    return null;
-  }
-
-  const card = section('環境', 'Environment');
-  card.append(statList(rows));
-  return card;
+  return rows;
 }
 
 function button(label: string, className: string, onClick: () => void): HTMLButtonElement {
