@@ -124,6 +124,16 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     }
   }
 
+  /** 在編輯器開啟面板列出的檔案（目前只有 README）。 */
+  private async openFile(target: string): Promise<void> {
+    try {
+      const document = await vscode.workspace.openTextDocument(vscode.Uri.file(target));
+      await vscode.window.showTextDocument(document, { preview: true });
+    } catch {
+      void vscode.window.showWarningMessage(`forrrk：開不了 ${target}`);
+    }
+  }
+
   /** 用作業系統的檔案管理員開啟儲存庫根目錄。 */
   async openFolder(): Promise<void> {
     if (!this.current) {
@@ -184,6 +194,9 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         return;
       case 'openFolder':
         await this.openFolder();
+        return;
+      case 'openFile':
+        await this.openFile(message.path);
         return;
       case 'gitAutoPush':
         await this.gitAutoPush();

@@ -8,6 +8,7 @@ export type ClientMessage =
   | { type: 'refresh' }
   | { type: 'openInFork' }
   | { type: 'openFolder' }
+  | { type: 'openFile'; path: string }
   | { type: 'gitAutoPush' }
   | { type: 'copyText'; text: string; label: string };
 

@@ -20,6 +20,7 @@ suite('webview render', () => {
       onOpenInFork: () => calls.push('open'),
       onOpenFolder: () => calls.push('folder'),
       onGitAutoPush: () => calls.push('autoPush'),
+      onOpenFile: (target) => calls.push(`openFile:${target}`),
       onCopy: (text, label) => calls.push(`copy:${label}:${text}`),
     };
   });
@@ -92,7 +93,9 @@ suite('webview render', () => {
       ['core', 'include'],
     );
     assert.equal(findOne(root, 'bool')?.textContent, 'false');
-    assert.equal(findOne(root, 'hint')?.textContent, '此設定引入了外部檔案，內容未展開');
+    assert.ok(
+      findAll(root, 'hint').some((element) => element.textContent === '此設定引入了外部檔案，內容未展開'),
+    );
   });
 
   test('warnings 畫在內容最上方', () => {
@@ -131,6 +134,65 @@ suite('webview render', () => {
     assert.ok(wide[0].textContent.startsWith('其他設定'));
   });
 
+  test('專案卡畫出名稱、版本與規模數字', () => {
+    const root = draw({ repo: repo() });
+
+    assert.equal(findOne(root, 'project-name')?.textContent, 'forrrk 0.1.3');
+    const values = findAll(root, 'entries')[0]
+      ?.children.filter((child) => child.tagName === 'dd')
+      .map((child) => child.textContent);
+    assert.deepEqual(values?.slice(0, 3), ['Apache-2.0', '3', '2']);
+  });
+
+  test('最近提交列出訊息、作者與短 SHA', () => {
+    const root = draw({ repo: repo() });
+
+    assert.equal(findOne(root, 'commit-message')?.textContent, '修好刷新按鈕');
+    assert.equal(findOne(root, 'commit-author')?.textContent, 'lazyjerry');
+    assert.equal(findOne(root, 'commit-sha')?.textContent, 'a1b2c3d');
+  });
+
+  test('README 卡片的開啟按鈕送出完整路徑', () => {
+    const root = draw({ repo: repo() });
+
+    assert.equal(findOne(root, 'readme-title')?.textContent, 'forrrk');
+    findButton(root, '開啟 README.md')?.click();
+    assert.deepEqual(calls, ['openFile:/tmp/demo/README.md']);
+  });
+
+  test('沒有 README 就不畫那張卡片', () => {
+    const root = draw({ repo: repo({ readme: null }) });
+    assert.equal(findOne(root, 'readme-title'), undefined);
+  });
+
+  test('環境資訊全空時整張卡片不出現', () => {
+    const withEnvironment = draw({ repo: repo() });
+    const withoutEnvironment = draw({
+      repo: repo({ environment: { submodules: [], worktrees: [], hooks: [], lfs: false, workflows: [] } }),
+    });
+
+    const titles = (root: StubElement) => findAll(root, 'title-main').map((element) => element.textContent);
+    assert.ok(titles(withEnvironment).includes('環境'));
+    assert.ok(!titles(withoutEnvironment).includes('環境'));
+  });
+
+  test('設定的鍵名旁邊掛中文說明，查得到的才標', () => {
+    const root = draw({
+      repo: repo({
+        configGroups: [
+          { title: 'core', entries: [{ key: 'bare', value: 'false' }, { key: 'zzz', value: '1' }], hasInclude: false },
+        ],
+      }),
+    });
+
+    assert.deepEqual(
+      findAll(root, 'key-sub')
+        .map((element) => element.textContent)
+        .filter((text) => text === '裸儲存庫' || text === ''),
+      ['裸儲存庫'],
+    );
+  });
+
   test('過長的路徑中間省略，完整值留在 title', () => {
     const long = `/Users/someone/very/deep/${'segment/'.repeat(12)}project`;
     const label = findOne(draw({ targetPath: long }), 'repo-path');
@@ -161,6 +223,30 @@ function repo(overrides: Partial<RepoInfo> = {}): RepoInfo {
       { title: 'core', entries: [{ key: 'bare', value: 'false' }], hasInclude: false },
       { title: 'include', entries: [{ key: 'path', value: '../shared' }], hasInclude: true },
     ],
+    activity: {
+      recentCommits: [{ sha: SHA, message: '修好刷新按鈕', author: 'lazyjerry', at: Date.now() - 3600_000 }],
+      commitsLast7Days: 4,
+      commitsLast30Days: 9,
+      lastActivityAt: Date.now() - 600_000,
+      authors: ['lazyjerry'],
+      truncated: false,
+    },
+    scale: {
+      branchCount: 3,
+      tagCount: 2,
+      packBytes: 2_500_000,
+      looseObjectCount: 12,
+      lastGitOperationAt: Date.now() - 900_000,
+    },
+    project: {
+      name: 'forrrk',
+      version: '0.1.3',
+      description: '在 VS Code 底部面板檢視 git 資訊',
+      source: 'package.json',
+      license: 'Apache-2.0',
+    },
+    readme: { path: '/tmp/demo/README.md', fileName: 'README.md', title: 'forrrk', body: '面板說明' },
+    environment: { submodules: ['docs'], worktrees: [], hooks: ['pre-commit'], lfs: false, workflows: ['ci.yml'] },
     warnings: [],
     ...overrides,
   };
