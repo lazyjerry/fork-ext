@@ -77,12 +77,21 @@ suite('webview render', () => {
     assert.equal(findOne(root, 'branch'), undefined);
   });
 
-  test('遠端顯示 URL、push URL 與上游追蹤', () => {
+  test('遠端跟 HEAD 同一張卡，網址拆成網域與路徑', () => {
     const root = draw({ repo: repo() });
-    const subs = findAll(root, 'sub').map((element) => element.textContent);
+    const head = card(root, 'HEAD');
 
-    assert.equal(findOne(root, 'url')?.textContent, 'https://example.com/a.git');
-    assert.deepEqual(subs, ['push: git@example.com:a.git', '↳ 追蹤 main']);
+    assert.ok(head);
+    assert.deepEqual(entryValues(head), ['example.com', 'a.git', 'git@example.com:a.git']);
+    assert.equal(findOne(root, 'upstream')?.textContent, '↳ 追蹤 main');
+  });
+
+  test('scp 形式與本機路徑的遠端也拆得開', () => {
+    const scp = draw({ repo: repo({ remotes: [{ name: 'origin', url: 'git@github.com:owner/repo.git' }] }) });
+    assert.deepEqual(entryValues(card(scp, 'HEAD')!), ['github.com', 'owner/repo.git']);
+
+    const local = draw({ repo: repo({ remotes: [{ name: 'origin', url: '/srv/git/repo.git' }] }) });
+    assert.deepEqual(entryValues(card(local, 'HEAD')!), ['/srv/git/repo.git']);
   });
 
   test('設定依 section 分組，布林值走 badge，include 標示未展開', () => {
@@ -138,10 +147,7 @@ suite('webview render', () => {
     const root = draw({ repo: repo() });
 
     assert.equal(findOne(root, 'project-name')?.textContent, 'forrrk 0.1.3');
-    const values = findAll(root, 'entries')[0]
-      ?.children.filter((child) => child.tagName === 'dd')
-      .map((child) => child.textContent);
-    assert.deepEqual(values?.slice(0, 3), ['Apache-2.0', '3', '2']);
+    assert.deepEqual(entryValues(card(root, '專案')!).slice(0, 3), ['Apache-2.0', '3', '2']);
   });
 
   test('最近提交列出訊息、作者與短 SHA', () => {
@@ -152,28 +158,42 @@ suite('webview render', () => {
     assert.equal(findOne(root, 'commit-sha')?.textContent, 'a1b2c3d');
   });
 
-  test('README 卡片的開啟按鈕送出完整路徑', () => {
+  test('README 併進專案卡，開啟按鈕送出完整路徑', () => {
     const root = draw({ repo: repo() });
+    const project = card(root, '專案');
 
-    assert.equal(findOne(root, 'readme-title')?.textContent, 'forrrk');
+    assert.ok(project?.textContent.includes('面板說明'));
     findButton(root, '開啟 README.md')?.click();
     assert.deepEqual(calls, ['openFile:/tmp/demo/README.md']);
   });
 
-  test('沒有 README 就不畫那張卡片', () => {
-    const root = draw({ repo: repo({ readme: null }) });
-    assert.equal(findOne(root, 'readme-title'), undefined);
+  test('README 標題跟專案名一樣就不重複標，不一樣才標', () => {
+    assert.equal(findOne(draw({ repo: repo() }), 'readme-title'), undefined);
+
+    const renamed = draw({ repo: repo({ readme: { path: '/tmp/demo/README.md', fileName: 'README.md', title: '另一個名字', body: '面板說明' } }) });
+    assert.equal(findOne(renamed, 'readme-title')?.textContent, '另一個名字');
   });
 
-  test('環境資訊全空時整張卡片不出現', () => {
+  test('沒有 README 就不畫那一段', () => {
+    const root = draw({ repo: repo({ readme: null }) });
+    assert.equal(findButton(root, '開啟 README.md'), undefined);
+  });
+
+  test('環境資訊接在專案卡的欄位後面，全空時整段列都不出現', () => {
     const withEnvironment = draw({ repo: repo() });
     const withoutEnvironment = draw({
       repo: repo({ environment: { submodules: [], worktrees: [], hooks: [], lfs: false, workflows: [] } }),
     });
 
-    const titles = (root: StubElement) => findAll(root, 'title-main').map((element) => element.textContent);
-    assert.ok(titles(withEnvironment).includes('環境'));
-    assert.ok(!titles(withoutEnvironment).includes('環境'));
+    assert.deepEqual(entryValues(card(withEnvironment, '專案')!).slice(-3), ['docs', 'pre-commit', 'ci.yml']);
+    assert.equal(entryValues(card(withoutEnvironment, '專案')!).length, 5);
+  });
+
+  test('卡片固定四張：三張窄卡加一張滿版設定卡', () => {
+    const titles = findAll(draw({ repo: repo() }), 'card').map(
+      (element) => findOne(element, 'title-main')?.textContent,
+    );
+    assert.deepEqual(titles, ['HEAD', '專案', '最近提交', '其他設定']);
   });
 
   test('設定的鍵名旁邊掛中文說明，查得到的才標', () => {
@@ -207,6 +227,18 @@ suite('webview render', () => {
     assert.equal(findOne(root, 'read-at')?.textContent, '讀取中…');
   });
 });
+
+/** 卡片標題是卡片裡第一個 title-main（卡片內的小標題排在它後面）。 */
+function card(root: StubElement, title: string): StubElement | undefined {
+  return findAll(root, 'card').find((element) => findOne(element, 'title-main')?.textContent === title);
+}
+
+/** 一張卡裡所有欄位清單的值，依畫出來的順序。 */
+function entryValues(scope: StubElement): string[] {
+  return findAll(scope, 'entries').flatMap((list) =>
+    list.children.filter((child) => child.tagName === 'dd').map((child) => child.textContent),
+  );
+}
 
 function repo(overrides: Partial<RepoInfo> = {}): RepoInfo {
   return {
