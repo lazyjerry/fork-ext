@@ -1,4 +1,5 @@
 import type { ConfigGroup, RemoteInfo, RepoInfo } from '../core/git/types';
+import { configLabel } from './configLabels';
 
 // 零框架：狀態變了就整段重畫。面板內容量很小，重畫比維護 diff 便宜。
 // 所有文字一律走 textContent，git config 的值可能含任何字元，不能拼進 innerHTML。
@@ -16,6 +17,7 @@ export interface RenderHandlers {
   onOpenFolder(): void;
   onGitAutoPush(): void;
   onCopy(text: string, label: string): void;
+  onOpenFile(target: string): void;
 }
 
 const PATH_MAX_LENGTH = 64;
@@ -77,14 +79,23 @@ function renderContent(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
     content.append(el('div', 'warning', warning));
   }
   content.append(renderHead(repo, handlers));
+  content.append(renderProject(repo));
+  content.append(renderActivity(repo));
+  if (repo.readme) {
+    content.append(renderReadme(repo.readme, handlers));
+  }
   content.append(renderRemotes(repo));
+  const environment = renderEnvironment(repo);
+  if (environment) {
+    content.append(environment);
+  }
   content.append(renderConfig(repo.configGroups));
 
   return content;
 }
 
 function renderHead(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
-  const card = section('HEAD');
+  const card = section('HEAD', '目前狀態');
   const main = el('div', 'head-main');
 
   if (repo.detached) {
@@ -123,7 +134,7 @@ function renderHead(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
 }
 
 function renderRemotes(repo: RepoInfo): HTMLElement {
-  const card = section('遠端');
+  const card = section('遠端', 'Remotes');
 
   if (repo.remotes.length === 0) {
     card.append(el('div', 'muted', '未設定遠端'));
@@ -157,7 +168,7 @@ function renderRemote(remote: RemoteInfo, repo: RepoInfo): HTMLElement {
 }
 
 function renderConfig(groups: ConfigGroup[]): HTMLElement {
-  const card = section('其他設定', 'wide');
+  const card = section('其他設定', 'Config', 'wide');
 
   if (groups.length === 0) {
     card.append(el('div', 'muted', '沒有其他設定'));
@@ -178,10 +189,17 @@ function renderConfigGroup(group: ConfigGroup): HTMLElement {
 
   const list = el('dl', 'entries');
   for (const entry of group.entries) {
-    list.append(el('dt', '', entry.key));
+    const key = el('dt', '');
+    key.append(el('span', 'key-main', entry.key));
+    const label = configLabel(group.title, entry.key);
+    if (label) {
+      key.append(el('span', 'key-sub', label));
+    }
+    list.append(key);
+
     const value = el('dd', '');
     if (entry.value === 'true' || entry.value === 'false') {
-      value.append(el('span', `badge bool ${entry.value}`, entry.value));
+      value.append(el('span', `bool ${entry.value}`, entry.value));
     } else {
       value.textContent = entry.value;
     }
@@ -195,9 +213,164 @@ function renderConfigGroup(group: ConfigGroup): HTMLElement {
   return box;
 }
 
-function section(title: string, extraClass = ''): HTMLElement {
+/** 卡片標題一律中英並列，掃標題就知道這張在講什麼、對應到 git 的哪個名詞。 */
+function section(title: string, subtitle: string, extraClass = ''): HTMLElement {
   const card = el('section', extraClass ? `card ${extraClass}` : 'card');
-  card.append(el('div', 'card-title', title));
+  const heading = el('div', 'card-title');
+  heading.append(el('span', 'title-main', title));
+  heading.append(el('span', 'title-sub', subtitle));
+  card.append(heading);
+  return card;
+}
+
+/** 中英對照的欄位清單，沿用「其他設定」那組斑馬紋樣式。 */
+function statList(rows: Array<{ label: string; sub: string; value: string | HTMLElement }>): HTMLElement {
+  const list = el('dl', 'entries');
+  for (const row of rows) {
+    const key = el('dt', '');
+    key.append(el('span', 'key-main', row.label));
+    key.append(el('span', 'key-sub', row.sub));
+    list.append(key);
+
+    const value = el('dd', '');
+    if (typeof row.value === 'string') {
+      value.textContent = row.value;
+    } else {
+      value.append(row.value);
+    }
+    list.append(value);
+  }
+  return list;
+}
+
+function renderProject(repo: RepoInfo): HTMLElement {
+  const card = section('專案', 'Project');
+  const { project, scale } = repo;
+
+  if (project?.name) {
+    const headline = el('div', 'project-name', project.version ? `${project.name} ${project.version}` : project.name);
+    headline.title = `來源：${project.source}`;
+    card.append(headline);
+  }
+  if (project?.description) {
+    card.append(el('div', 'project-description', project.description));
+  }
+
+  const rows: Array<{ label: string; sub: string; value: string }> = [];
+  if (project?.license) {
+    rows.push({ label: '授權', sub: 'License', value: project.license });
+  }
+  rows.push({ label: '分支數', sub: 'Branches', value: String(scale.branchCount) });
+  rows.push({ label: '標籤數', sub: 'Tags', value: String(scale.tagCount) });
+  rows.push({
+    label: '物件庫',
+    sub: 'Objects',
+    value: `${formatBytes(scale.packBytes)}（鬆散物件 ${scale.looseObjectCount}）`,
+  });
+  rows.push({
+    label: '上次操作',
+    sub: 'Last git activity',
+    value: scale.lastGitOperationAt === null ? '未知' : formatMoment(scale.lastGitOperationAt),
+  });
+  card.append(statList(rows));
+
+  if (!project) {
+    card.append(el('div', 'hint', '沒有找到 package.json 之類的專案宣告檔'));
+  }
+  return card;
+}
+
+function renderActivity(repo: RepoInfo): HTMLElement {
+  const card = section('最近提交', 'Recent commits');
+  const { activity } = repo;
+
+  if (activity.recentCommits.length === 0) {
+    card.append(el('div', 'muted', 'reflog 裡沒有這台機器上的提交紀錄'));
+  } else {
+    const list = el('ul', 'commits');
+    for (const commit of activity.recentCommits) {
+      const item = el('li', 'commit');
+      item.append(el('div', 'commit-message', commit.message || '（無訊息）'));
+      const meta = el('div', 'commit-meta');
+      meta.append(el('span', 'commit-author', commit.author));
+      meta.append(el('span', 'separator', '·'));
+      meta.append(el('span', 'commit-time', formatMoment(commit.at)));
+      meta.append(el('span', 'separator', '·'));
+      meta.append(el('span', 'commit-sha', commit.sha.slice(0, 7)));
+      item.append(meta);
+      list.append(item);
+    }
+    card.append(list);
+  }
+
+  card.append(
+    statList([
+      { label: '近 7 天', sub: 'Last 7 days', value: `${activity.commitsLast7Days} 次提交` },
+      { label: '近 30 天', sub: 'Last 30 days', value: `${activity.commitsLast30Days} 次提交` },
+      {
+        label: '最後活動',
+        sub: 'Last activity',
+        value: activity.lastActivityAt === null ? '未知' : formatMoment(activity.lastActivityAt),
+      },
+      { label: '作者', sub: 'Authors', value: activity.authors.length > 0 ? activity.authors.join('、') : '未知' },
+    ]),
+  );
+
+  card.append(
+    el(
+      'div',
+      'hint',
+      activity.truncated
+        ? 'reflog 太長只讀了檔尾，統計僅涵蓋最近一段；且 reflog 只記這台機器上的操作。'
+        : 'reflog 只記這台機器上的操作，不含別人推上遠端的提交。',
+    ),
+  );
+  return card;
+}
+
+function renderReadme(readme: NonNullable<RepoInfo['readme']>, handlers: RenderHandlers): HTMLElement {
+  const card = section('README', '專案說明');
+
+  if (readme.title) {
+    card.append(el('div', 'readme-title', readme.title));
+  }
+  if (readme.body) {
+    card.append(el('div', 'readme-body', readme.body));
+  } else {
+    card.append(el('div', 'muted', '找不到可摘要的段落'));
+  }
+
+  const open = button(`開啟 ${readme.fileName}`, 'link', () => handlers.onOpenFile(readme.path));
+  open.title = readme.path;
+  card.append(open);
+  return card;
+}
+
+function renderEnvironment(repo: RepoInfo): HTMLElement | null {
+  const { submodules, worktrees, hooks, lfs, workflows } = repo.environment;
+  const rows: Array<{ label: string; sub: string; value: string }> = [];
+
+  if (submodules.length > 0) {
+    rows.push({ label: '子模組', sub: 'Submodules', value: submodules.join('、') });
+  }
+  if (worktrees.length > 0) {
+    rows.push({ label: '連結工作樹', sub: 'Worktrees', value: worktrees.join('、') });
+  }
+  if (hooks.length > 0) {
+    rows.push({ label: '已安裝 hook', sub: 'Hooks', value: hooks.join('、') });
+  }
+  if (lfs) {
+    rows.push({ label: 'Git LFS', sub: 'Large File Storage', value: '已啟用' });
+  }
+  if (workflows.length > 0) {
+    rows.push({ label: 'CI 流程', sub: 'Workflows', value: workflows.join('、') });
+  }
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const card = section('環境', 'Environment');
+  card.append(statList(rows));
   return card;
 }
 
@@ -297,6 +470,41 @@ function formatReadAt(readAt: number | null): string {
     return '尚未讀取';
   }
   return `最後讀取 ${new Date(readAt).toLocaleTimeString(undefined, { hour12: false })}`;
+}
+
+/** 一天內講「幾小時前」，再久就直接給日期——面板是掃一眼的地方。 */
+function formatMoment(at: number): string {
+  const diff = Date.now() - at;
+  const minute = 60 * 1000;
+  const hour = 60 * minute;
+  const day = 24 * hour;
+
+  if (diff < 0) {
+    return new Date(at).toLocaleDateString();
+  }
+  if (diff < minute) {
+    return '剛剛';
+  }
+  if (diff < hour) {
+    return `${Math.floor(diff / minute)} 分鐘前`;
+  }
+  if (diff < day) {
+    return `${Math.floor(diff / hour)} 小時前`;
+  }
+  if (diff < 30 * day) {
+    return `${Math.floor(diff / day)} 天前`;
+  }
+  return new Date(at).toLocaleDateString();
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes <= 0) {
+    return '0 B';
+  }
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)));
+  const value = bytes / 1024 ** index;
+  return `${index === 0 ? value : value.toFixed(1)} ${units[index]}`;
 }
 
 /** 路徑用中間省略，頭尾都比中段重要。 */

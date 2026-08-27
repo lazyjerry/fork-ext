@@ -18,9 +18,15 @@
 
 | 區塊 | 內容 | 來源 |
 | --- | --- | --- |
-| HEAD | 目前分支或 detached 標示、HEAD SHA（點擊複製完整值）、stash 筆數、最近切換過的分支 | `.git/HEAD`、`refs/`、`packed-refs`、`logs/HEAD`、`logs/refs/stash` |
-| 遠端 | 每個 remote 的 URL 與 push URL、目前分支的上游追蹤 | `.git/config` |
-| 其他設定 | `.git/config` 其餘設定，依 section 分組編排 | `.git/config` |
+| HEAD 目前狀態 | 目前分支或 detached 標示、HEAD SHA（點擊複製完整值）、stash 筆數、最近切換過的分支 | `.git/HEAD`、`refs/`、`packed-refs`、`logs/HEAD`、`logs/refs/stash` |
+| 專案 Project | 專案名稱、版本、描述、授權、分支數、標籤數、packfile 佔用、上次 git 操作時間 | `package.json` 等宣告檔、`LICENSE`、`refs/`、`packed-refs`、`objects/`、`.git/index` |
+| 最近提交 Recent commits | 最近 5 次提交的訊息、作者、時間與短 SHA，近 7／30 天提交次數、出現過的作者 | `.git/logs/HEAD` |
+| README | README 的首個標題與第一段敘述，可點擊在編輯器開啟 | repo 根目錄的 `README.md` |
+| 遠端 Remotes | 每個 remote 的 URL 與 push URL、目前分支的上游追蹤 | `.git/config` |
+| 環境 Environment | submodule、linked worktree、已安裝的 hook、Git LFS、CI workflow | `.gitmodules`、`.git/worktrees`、`.git/hooks`、`.gitattributes`、`.github/workflows` |
+| 其他設定 Config | `.git/config` 其餘設定，依 section 分組編排，常見鍵名附中文說明 | `.git/config` |
+
+「最近提交」來自 reflog，只記錄**這台機器上**發生過的操作：clone 之前的歷史、別人推上遠端的提交都不在裡面。
 
 linked worktree 與 submodule 的 `.git` 是指向別處的文字檔，兩者都能正確解析。
 

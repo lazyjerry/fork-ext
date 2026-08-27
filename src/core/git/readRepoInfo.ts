@@ -1,7 +1,11 @@
-import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
+import { readProjectIdentity, readReadme } from '../project/readProject';
+import { readActivity } from './readActivity';
+import { readEnvironment } from './readEnvironment';
+import { readFileTail, readTextFile } from './fsRead';
 import { parseGitConfig } from './parseConfig';
+import { readScale } from './readScale';
 import type { ConfigGroup, GitConfigEntry, RemoteInfo, RepoInfo, RepoLocation, UpstreamInfo } from './types';
 
 /** reflog 可能很大，只讀檔尾這麼多位元組就足以取得最近幾次切換。 */
@@ -25,17 +29,33 @@ export async function readRepoInfo(location: RepoLocation): Promise<RepoInfo> {
   const headSha = head.sha ?? (head.ref ? await resolveRef(location.gitDir, commonDir, head.ref) : null);
   const entries = await readConfigEntries(commonDir, warnings);
 
+  // 這幾份互不相干，一起讀比串著讀快，而且每一份自己吞掉讀不到的情況。
+  const [recentBranches, stashCount, activity, scale, project, readme, environment] = await Promise.all([
+    readRecentBranches(location.gitDir, head.branch),
+    readStashCount(commonDir),
+    readActivity(location.gitDir),
+    readScale(location.gitDir, commonDir),
+    readProjectIdentity(location.repoRoot),
+    readReadme(location.repoRoot),
+    readEnvironment(location.repoRoot, commonDir),
+  ]);
+
   return {
     repoRoot: location.repoRoot,
     gitDir: location.gitDir,
     branch: head.branch,
     detached: head.detached,
     headSha,
-    recentBranches: await readRecentBranches(location.gitDir, head.branch),
+    recentBranches,
     remotes: collectRemotes(entries),
     upstream: collectUpstream(entries, head.branch),
-    stashCount: await readStashCount(commonDir),
+    stashCount,
     configGroups: groupConfig(entries),
+    activity,
+    scale,
+    project,
+    readme,
+    environment,
     warnings,
   };
 }
@@ -230,39 +250,4 @@ function shortenRef(ref: string): string {
     return ref.slice('refs/heads/'.length);
   }
   return ref.startsWith('refs/') ? ref.slice('refs/'.length) : ref;
-}
-
-async function readTextFile(target: string): Promise<string | null> {
-  try {
-    return await fs.readFile(target, 'utf8');
-  } catch {
-    return null;
-  }
-}
-
-async function readFileTail(
-  target: string,
-  maxBytes: number,
-): Promise<{ text: string; truncated: boolean } | null> {
-  let handle;
-  try {
-    handle = await fs.open(target, 'r');
-  } catch {
-    return null;
-  }
-
-  try {
-    const stat = await handle.stat();
-    const length = Math.min(stat.size, maxBytes);
-    if (length === 0) {
-      return { text: '', truncated: false };
-    }
-    const buffer = Buffer.alloc(length);
-    await handle.read(buffer, 0, length, stat.size - length);
-    return { text: buffer.toString('utf8'), truncated: stat.size > maxBytes };
-  } catch {
-    return null;
-  } finally {
-    await handle.close();
-  }
 }

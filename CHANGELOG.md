@@ -4,6 +4,18 @@
 
 ## [Unreleased]
 
+### Added
+
+- **專案卡片**：讀 `package.json`／`pyproject.toml`／`Cargo.toml`／`composer.json`／`deno.json`／`go.mod` 的名稱、版本與描述，加上 LICENSE 首行推斷的授權、分支數、標籤數、packfile 佔用與上次 git 操作時間。
+- **最近提交卡片**：從 `.git/logs/HEAD`（reflog）取最近 5 次提交的訊息、作者、時間與短 SHA，並統計近 7／30 天的提交次數與出現過的作者。reflog 只記本機操作，卡片下方有標註。
+- **README 卡片**：取 repo 根目錄 README 的首個標題與第一段敘述（跳過徽章），可點「開啟」在編輯器開啟該檔；指令為新增的 `fork.openFile` 訊息。
+- **環境卡片**：submodule（`.gitmodules`）、linked worktree（`.git/worktrees`）、已安裝的 hook（排除 `.sample`）、Git LFS（`.gitattributes`）、GitHub Actions workflow 檔；全部沒有時整張卡不出現。
+
+### Changed
+
+- 卡片標題改為中英並列（例如「專案 Project」），新卡片的欄位名稱也是中英對照。
+- 「其他設定」的 git config 鍵名旁補上中文說明（約 35 個常見鍵，查不到的不標），布林值由填色藥丸改為著色文字，列與列之間加斑馬紋，群組卡片在群組少時撐滿整列。
+
 ## [0.1.3] - 2026-08-27
 
 ### Changed

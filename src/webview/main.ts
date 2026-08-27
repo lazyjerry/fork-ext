@@ -29,6 +29,9 @@ const handlers: RenderHandlers = {
   onGitAutoPush() {
     post({ type: 'gitAutoPush' });
   },
+  onOpenFile(target) {
+    post({ type: 'openFile', path: target });
+  },
   onCopy(text, label) {
     post({ type: 'copyText', text, label });
   },
