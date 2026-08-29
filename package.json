@@ -69,6 +69,10 @@
       {
         "command": "fork.openFolder",
         "title": "Fork: Open Repository Folder"
+      },
+      {
+        "command": "fork.openRemote",
+        "title": "Fork: Open Remote Repository in Browser"
       }
     ]
   },

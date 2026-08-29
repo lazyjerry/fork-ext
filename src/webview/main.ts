@@ -26,6 +26,9 @@ const handlers: RenderHandlers = {
   onOpenFolder() {
     post({ type: 'openFolder' });
   },
+  onOpenRemote() {
+    post({ type: 'openRemote' });
+  },
   onGitAutoPush() {
     post({ type: 'gitAutoPush' });
   },
