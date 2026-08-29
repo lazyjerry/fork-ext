@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-08-29
+
 ### Added
 
 - **開啟遠端網頁**按鈕與指令 `Fork: Open Remote Repository in Browser`：用預設瀏覽器開啟遠端儲存庫的網頁。遠端優先取目前分支追蹤的那個，其次 `origin`。SSH 形式（`git@host:owner/repo.git`）、`ssh://`、`git://` 會改寫成 `https://`，路徑保持原樣交給託管服務跳轉；本機路徑與 `file://` 沒有網頁可開，會直接說明。
