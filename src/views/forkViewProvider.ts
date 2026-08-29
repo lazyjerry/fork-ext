@@ -14,7 +14,8 @@ import {
   locateGitAutoPush,
 } from '../core/gitAutoPush/locateGitAutoPush';
 import { readRepoInfo } from '../core/git/readRepoInfo';
-import type { RepoLocation } from '../core/git/types';
+import { pickPrimaryRemote, toRemoteWebUrl } from '../core/git/remoteWebUrl';
+import type { RepoInfo, RepoLocation } from '../core/git/types';
 import type { ClientMessage, HostMessage } from '../shared/protocol';
 import { isClientMessage } from '../shared/protocol';
 
@@ -28,7 +29,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
 
   private view: vscode.WebviewView | undefined;
   /** 面板目前顯示的那份資料對應的 repo；按鈕操作以它為準，跟畫面所見一致。 */
-  private current: { location: RepoLocation | null; targetPath: string | null } | null = null;
+  private current: { location: RepoLocation | null; targetPath: string | null; repo: RepoInfo | null } | null = null;
   /**
    * 焦點移到 webview 時 activeTextEditor 會變成 undefined，
    * 所以另外記住最後一個真正的檔案編輯器，否則按下面板上的「刷新」就跟不到編輯器了。
@@ -89,7 +90,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     const location = targetPath ? await discoverRepo(targetPath) : null;
     const repo = location ? await readRepoInfo(location) : null;
 
-    this.current = { location, targetPath };
+    this.current = { location, targetPath, repo };
     await this.post({ type: 'repoLoaded', repo, targetPath, readAt: Date.now() });
   }
 
@@ -150,6 +151,33 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     await vscode.env.openExternal(vscode.Uri.file(location.repoRoot));
   }
 
+  /** 用預設瀏覽器開啟遠端網址對應的網頁。 */
+  async openRemote(): Promise<void> {
+    if (!this.current) {
+      await this.refresh();
+    }
+
+    const repo = this.current?.repo ?? null;
+    if (!repo) {
+      const where = this.current?.targetPath ?? '尚未開啟任何資料夾';
+      void vscode.window.showWarningMessage(`forrrk：這裡不是 git 儲存庫（${where}）`);
+      return;
+    }
+
+    const remote = pickPrimaryRemote(repo);
+    const webUrl = toRemoteWebUrl(remote?.url);
+    if (!remote || !webUrl) {
+      void vscode.window.showWarningMessage(
+        repo.remotes.length === 0
+          ? 'forrrk：這個儲存庫沒有設定遠端。'
+          : 'forrrk：遠端網址不是網頁位址（本機路徑或 file://），沒有可開啟的網頁。',
+      );
+      return;
+    }
+
+    await vscode.env.openExternal(vscode.Uri.parse(webUrl));
+  }
+
   /**
    * 在整合終端機執行 `git-auto-push -a`。
    * 這是互動式 bash 腳本（選單、AI 產生 commit 訊息、彩色輸出），
@@ -194,6 +222,9 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
         return;
       case 'openFolder':
         await this.openFolder();
+        return;
+      case 'openRemote':
+        await this.openRemote();
         return;
       case 'openFile':
         await this.openFile(message.path);

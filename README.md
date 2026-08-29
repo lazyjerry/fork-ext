@@ -10,9 +10,10 @@
 - **跟隨作用中編輯器**：從目前開啟的檔案往上找最近的 `.git`，找不到才退回工作區第一個資料夾。多儲存庫的工作區下也指得對。
 - **只在你要求時讀取**：不輪詢、不監看檔案。按下工具列的刷新圖示才重新定位並重讀，Panel 上標著最後讀取時間。
 - **一鍵開啟資料夾**：用作業系統的檔案管理員（macOS 的 Finder、Windows 的檔案總管）開啟儲存庫根目錄。
+- **一鍵開啟遠端網頁**：用預設瀏覽器開啟遠端儲存庫的網頁。`git@host:owner/repo.git` 這種 SSH 網址會改寫成 `https://`，路徑不動，由 GitHub／GitLab 這類服務自行跳轉。
 - **一鍵開啟 Fork**：呼叫 `fork -C <repo> open`。沒有 CLI 時提示安裝步驟並附上可複製的指令，沒有 Fork 時導向下載頁，不是儲存庫時直接說清楚。
 - **一鍵 Auto Push**：在整合終端機執行 [git-auto-push](https://github.com/lazyjerry/git-auto-push) 的 `git-auto-push -a`（自動 add → commit → push）。沒安裝時提示安裝指令。
-- **完全離線**：不載入遠端資源、不傳送 telemetry、不呼叫任何網路服務（Auto Push 本身是你裝的外部工具，網路行為由它決定）。
+- **完全離線**：不載入遠端資源、不傳送 telemetry、不主動呼叫任何網路服務（「開啟遠端網頁」是把網址交給你的瀏覽器；Auto Push 本身是你裝的外部工具，網路行為由它決定）。
 
 ## 顯示的資訊
 
@@ -34,7 +35,7 @@ linked worktree 與 submodule 的 `.git` 是指向別處的文字檔，兩者都
 
 ## 使用方式
 
-在底部 Panel 選擇 **forrrk**。工具列右側是四個圖示按鈕——刷新、Auto Push、開啟資料夾、在 Fork 中開啟，滑鼠停留可看名稱；資訊區以兩欄卡片排列，面板拉窄時自動退回一欄。也可從 Command Palette 執行：
+在底部 Panel 選擇 **forrrk**。工具列右側是五個圖示按鈕——刷新、Auto Push、開啟資料夾、開啟遠端網頁、在 Fork 中開啟，滑鼠停留可看名稱；資訊區以兩欄卡片排列，面板拉窄時自動退回一欄。也可從 Command Palette 執行：
 
 | 指令 | 說明 |
 | --- | --- |
@@ -42,6 +43,7 @@ linked worktree 與 submodule 的 `.git` 是指向別處的文字檔，兩者都
 | `Fork: Open Current Repository in Fork` | 用 Fork 開啟目前的儲存庫 |
 | `Fork: Run git-auto-push -a` | 在整合終端機執行 `git-auto-push -a` |
 | `Fork: Open Repository Folder` | 用檔案管理員開啟儲存庫根目錄 |
+| `Fork: Open Remote Repository in Browser` | 用瀏覽器開啟遠端儲存庫的網頁 |
 
 ## git-auto-push
 

@@ -14,6 +14,7 @@ suite('forrrk 延伸模組', () => {
     assert.ok(commands.includes('fork.openInFork'));
     assert.ok(commands.includes('fork.gitAutoPush'));
     assert.ok(commands.includes('fork.openFolder'));
+    assert.ok(commands.includes('fork.openRemote'));
 
     const contributions = extension.packageJSON.contributes as {
       views?: Record<string, Array<{ id: string }>>;

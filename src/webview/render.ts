@@ -15,6 +15,7 @@ export interface RenderHandlers {
   onRefresh(): void;
   onOpenInFork(): void;
   onOpenFolder(): void;
+  onOpenRemote(): void;
   onGitAutoPush(): void;
   onCopy(text: string, label: string): void;
   onOpenFile(target: string): void;
@@ -55,6 +56,9 @@ function renderToolbar(state: ViewState, handlers: RenderHandlers): HTMLElement 
   );
   actions.append(
     iconButton('開啟資料夾', 'folder', 'solid', handlers.onOpenFolder, '開啟資料夾：在檔案管理員開啟儲存庫根目錄'),
+  );
+  actions.append(
+    iconButton('開啟遠端網頁', 'globe', 'solid', handlers.onOpenRemote, '開啟遠端網頁：用瀏覽器開啟遠端儲存庫'),
   );
   actions.append(iconButton('在 Fork 中開啟', 'fork', 'primary', handlers.onOpenInFork, '在 Fork 中開啟'));
   bar.append(actions);
@@ -440,7 +444,7 @@ function iconButton(
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
-type IconName = 'refresh' | 'push' | 'folder' | 'fork';
+type IconName = 'refresh' | 'push' | 'folder' | 'globe' | 'fork';
 
 interface IconShape {
   tag: 'path' | 'circle';
@@ -462,6 +466,11 @@ const ICONS: Record<IconName, IconShape[]> = {
   ],
   folder: [
     { tag: 'path', attributes: { d: 'M3.5 18.4V6.6c0-.9.7-1.6 1.6-1.6h3.6l2.2 2.6h7.6c.9 0 1.6.7 1.6 1.6v9.2c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z' } },
+  ],
+  globe: [
+    { tag: 'circle', attributes: { cx: '12', cy: '12', r: '8.5' } },
+    { tag: 'path', attributes: { d: 'M3.5 12h17' } },
+    { tag: 'path', attributes: { d: 'M12 3.5c2.4 2.4 3.7 5.3 3.7 8.5s-1.3 6.1-3.7 8.5c-2.4-2.4-3.7-5.3-3.7-8.5S9.6 5.9 12 3.5z' } },
   ],
   // 與 Panel 分頁圖示同一組線條，兩處看起來是同一個東西。
   fork: [
