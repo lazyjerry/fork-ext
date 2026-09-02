@@ -11,6 +11,7 @@ export type ClientMessage =
   | { type: 'openRemote' }
   | { type: 'openFile'; path: string }
   | { type: 'gitAutoPush' }
+  | { type: 'setSkipWorktree'; path: string; ignore: boolean }
   | { type: 'copyText'; text: string; label: string };
 
 export type HostMessage =

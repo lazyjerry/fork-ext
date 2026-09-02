@@ -23,6 +23,8 @@ const execFileAsync = promisify(execFile);
 
 /** 開 Fork 卡住時不要無限等待；Fork 啟動再慢也不該超過這個時間。 */
 const FORK_LAUNCH_TIMEOUT_MS = 10_000;
+/** update-index 只改本機 index，正常是毫秒級；等這麼久還沒完就是卡住了。 */
+const GIT_COMMAND_TIMEOUT_MS = 10_000;
 
 export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   static readonly viewType = 'fork.info';
@@ -34,18 +36,18 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
    * 焦點移到 webview 時 activeTextEditor 會變成 undefined，
    * 所以另外記住最後一個真正的檔案編輯器，否則按下面板上的「刷新」就跟不到編輯器了。
    */
-  private lastFileEditorDirectory: string | null = null;
+  private lastFilePath: string | null = null;
   /** 上一次跑 git-auto-push 的終端機；每次執行都開新的，舊的順手關掉，避免堆一排。 */
   private autoPushTerminal: vscode.Terminal | undefined;
   private readonly disposables: vscode.Disposable[] = [];
 
   constructor(private readonly extensionUri: vscode.Uri) {
-    this.lastFileEditorDirectory = directoryOfEditor(vscode.window.activeTextEditor);
+    this.lastFilePath = filePathOfEditor(vscode.window.activeTextEditor);
     this.disposables.push(
       vscode.window.onDidChangeActiveTextEditor((editor) => {
-        const directory = directoryOfEditor(editor);
-        if (directory) {
-          this.lastFileEditorDirectory = directory;
+        const filePath = filePathOfEditor(editor);
+        if (filePath) {
+          this.lastFilePath = filePath;
         }
       }),
     );
@@ -86,9 +88,10 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
 
   /** 以「當下的作用中編輯器」重新定位 repo 並重讀。只在使用者要求時發生。 */
   async refresh(): Promise<void> {
-    const targetPath = this.resolveTargetPath();
+    const activeFile = this.resolveActiveFile();
+    const targetPath = this.resolveTargetPath(activeFile);
     const location = targetPath ? await discoverRepo(targetPath) : null;
-    const repo = location ? await readRepoInfo(location) : null;
+    const repo = location ? await readRepoInfo(location, { activeFile }) : null;
 
     this.current = { location, targetPath, repo };
     await this.post({ type: 'repoLoaded', repo, targetPath, readAt: Date.now() });
@@ -133,6 +136,49 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     } catch {
       void vscode.window.showWarningMessage(`forrrk：開不了 ${target}`);
     }
+  }
+
+  /**
+   * 切換「忽略變更」：標記或清除 .git/index 上的 skip-worktree／assume-unchanged。
+   *
+   * 這是整個延伸模組唯一會**寫入** git 狀態、也是唯一呼叫 git 指令的地方——旗標在 index 的二進位裡，
+   * 自己改等於重寫整份 index，風險遠高於呼叫 git。讀取端仍然完全不依賴 git 指令。
+   */
+  private async setSkipWorktree(relativePath: string, ignore: boolean): Promise<void> {
+    const location = this.current?.location ?? null;
+    if (!location) {
+      const where = this.current?.targetPath ?? '尚未開啟任何資料夾';
+      void vscode.window.showWarningMessage(`forrrk：這裡不是 git 儲存庫（${where}）`);
+      return;
+    }
+
+    const action = ignore ? '取消追蹤變更' : '恢復追蹤變更';
+    const picked = await vscode.window.showWarningMessage(
+      `forrrk：要對 ${relativePath} ${action}嗎？`,
+      { modal: true, detail: confirmDetail(relativePath, ignore) },
+      action,
+    );
+    if (picked !== action) {
+      return;
+    }
+
+    // 一次呼叫只有一個 mark 旗標會生效（git 的 update-index 是 else-if 分派，assume-unchanged 優先），
+    // 所以「恢復」要分兩次跑，合成一行會有一半沒清掉。
+    const flagSets = ignore ? [['--skip-worktree']] : [['--no-skip-worktree'], ['--no-assume-unchanged']];
+    for (const flags of flagSets) {
+      try {
+        await execFileAsync('git', ['-C', location.repoRoot, 'update-index', ...flags, '--', relativePath], {
+          timeout: GIT_COMMAND_TIMEOUT_MS,
+        });
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : String(error);
+        void vscode.window.showErrorMessage(`forrrk：${action}失敗（${detail}）`);
+        return;
+      }
+    }
+
+    await this.refresh();
+    void vscode.window.setStatusBarMessage(`forrrk：已${action} ${relativePath}`, 2000);
   }
 
   /** 用作業系統的檔案管理員開啟儲存庫根目錄。 */
@@ -232,6 +278,9 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       case 'gitAutoPush':
         await this.gitAutoPush();
         return;
+      case 'setSkipWorktree':
+        await this.setSkipWorktree(message.path, message.ignore);
+        return;
       case 'copyText':
         await vscode.env.clipboard.writeText(message.text);
         void vscode.window.setStatusBarMessage(`forrrk：已複製${message.label}`, 2000);
@@ -312,13 +361,15 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     }
   }
 
-  private resolveTargetPath(): string | null {
-    return (
-      directoryOfEditor(vscode.window.activeTextEditor) ??
-      this.lastFileEditorDirectory ??
-      vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ??
-      null
-    );
+  private resolveActiveFile(): string | null {
+    return filePathOfEditor(vscode.window.activeTextEditor) ?? this.lastFilePath;
+  }
+
+  private resolveTargetPath(activeFile: string | null): string | null {
+    if (activeFile) {
+      return path.dirname(activeFile);
+    }
+    return vscode.workspace.workspaceFolders?.[0]?.uri.fsPath ?? null;
   }
 
   private async post(message: HostMessage): Promise<void> {
@@ -348,12 +399,30 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
   }
 }
 
-function directoryOfEditor(editor: vscode.TextEditor | undefined): string | null {
+/** 確認對話框的內文。忽略變更的副作用不直覺，切換前一定要把後果講完。 */
+function confirmDetail(relativePath: string, ignore: boolean): string {
+  if (ignore) {
+    return [
+      `git update-index --skip-worktree -- ${relativePath}`,
+      '',
+      '之後這個檔案的本機修改不會出現在 git 狀態裡，也不會被 commit。',
+      '注意：切換分支或 pull 時若這個檔案在對方有更新，git 會直接失敗，要先恢復追蹤。',
+    ].join('\n');
+  }
+  return [
+    `git update-index --no-skip-worktree -- ${relativePath}`,
+    `git update-index --no-assume-unchanged -- ${relativePath}`,
+    '',
+    '之後這個檔案的本機修改會重新出現在 git 狀態裡。',
+  ].join('\n');
+}
+
+function filePathOfEditor(editor: vscode.TextEditor | undefined): string | null {
   const uri = editor?.document.uri;
   if (!uri || uri.scheme !== 'file') {
     return null;
   }
-  return path.dirname(uri.fsPath);
+  return uri.fsPath;
 }
 
 function createNonce(): string {

@@ -111,6 +111,31 @@ button.primary {
   border-color: var(--vscode-focusBorder);
 }
 
+/* 圖示按鈕的說明：hover 或鍵盤 focus 立刻出現。原生 title 要停一秒才跳出來，
+   一排長得差不多的圖示按鈕等不起這一秒。往左長，不會撐出水平捲軸。 */
+button[data-tooltip] {
+  position: relative;
+}
+
+button[data-tooltip]:hover::after,
+button[data-tooltip]:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: 220px;
+  padding: 2px 6px;
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-panel-border));
+  border-radius: var(--radius);
+  background: var(--vscode-editorHoverWidget-background, var(--vscode-editorWidget-background));
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+  font-size: 0.9em;
+  text-align: left;
+  pointer-events: none;
+}
+
 /* 兩欄卡片；面板拉窄到放不下兩欄時退回一欄。
    用 grid 不用 CSS 多欄排版：多欄在固定高度又要捲動的容器裡，超出的內容會往右邊生出新欄，
    垂直捲不到，等於看不到下半部的卡片。 */
@@ -281,7 +306,8 @@ button.sha {
 }
 
 /* auto-fit：群組少的時候讓卡片撐滿整列，不留一整條空欄。 */
-.config-groups {
+.config-groups,
+.ignore-groups {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 6px;
@@ -467,4 +493,58 @@ button.link {
 button.link:hover {
   color: var(--vscode-textLink-activeForeground);
   text-decoration: underline;
+}
+
+/* 忽略變更清單：一行一個路徑，右邊掛旗標名稱。 */
+.path-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.path-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+}
+
+.path-item .flag {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.85em;
+  white-space: nowrap;
+}
+
+/* 可點擊複製的路徑，看起來像連結而不是又一顆按鈕。 */
+button.path {
+  background: none;
+  color: var(--vscode-textLink-foreground);
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+  padding: 1px 0;
+  text-align: left;
+  min-width: 0;
+}
+
+button.path:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.exclude-lines {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.9em;
+}
+
+.exclude-line {
+  /* 空行也要佔一行高，否則 exclude 的段落間隔會整個垮掉。 */
+  min-height: 1.2em;
+  word-break: break-all;
+}
+
+.exclude-line.comment {
+  color: var(--vscode-descriptionForeground);
 }

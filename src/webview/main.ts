@@ -35,6 +35,9 @@ const handlers: RenderHandlers = {
   onOpenFile(target) {
     post({ type: 'openFile', path: target });
   },
+  onSetSkipWorktree(relativePath, ignore) {
+    post({ type: 'setSkipWorktree', path: relativePath, ignore });
+  },
   onCopy(text, label) {
     post({ type: 'copyText', text, label });
   },

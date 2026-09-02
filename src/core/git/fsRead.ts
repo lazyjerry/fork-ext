@@ -65,3 +65,12 @@ export async function modifiedAt(target: string): Promise<number | null> {
     return null;
   }
 }
+
+/** 二進位讀檔（.git/index 是 binary，不能用 utf8 讀）。 */
+export async function readBinaryFile(target: string): Promise<Buffer | null> {
+  try {
+    return await fs.readFile(target);
+  } catch {
+    return null;
+  }
+}
