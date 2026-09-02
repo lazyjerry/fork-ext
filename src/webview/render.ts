@@ -1,4 +1,4 @@
-import type { ConfigGroup, RemoteInfo, RepoInfo } from '../core/git/types';
+import type { ActiveFileStatus, ConfigGroup, IgnoreInfo, RemoteInfo, RepoInfo } from '../core/git/types';
 import { configLabel } from './configLabels';
 
 // 零框架：狀態變了就整段重畫。面板內容量很小，重畫比維護 diff 便宜。
@@ -19,9 +19,12 @@ export interface RenderHandlers {
   onGitAutoPush(): void;
   onCopy(text: string, label: string): void;
   onOpenFile(target: string): void;
+  onSetSkipWorktree(relativePath: string, ignore: boolean): void;
 }
 
 const PATH_MAX_LENGTH = 64;
+/** 清單裡的路徑擠在窄欄位裡，比工具列那條短一截才不會撐破欄寬。 */
+const LIST_PATH_MAX_LENGTH = 48;
 
 export function render(root: HTMLElement, state: ViewState, handlers: RenderHandlers): void {
   root.textContent = '';
@@ -82,11 +85,12 @@ function renderContent(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
   for (const warning of repo.warnings) {
     content.append(el('div', 'warning', warning));
   }
-  // 三張窄卡（HEAD 與遠端／專案／最近提交）＋ 一張滿版的設定卡。
+  // 三張窄卡（HEAD 與遠端／專案／最近提交）＋ 兩張滿版卡（忽略變更／設定）。
   // 卡片數固定，寬面板才不會出現「第一列三張、第二列兩張」那種右半邊全空的版面。
   content.append(renderHead(repo, handlers));
   content.append(renderProject(repo, handlers));
   content.append(renderActivity(repo));
+  content.append(renderIgnore(repo, handlers));
   content.append(renderConfig(repo.configGroups));
 
   return content;
@@ -372,6 +376,152 @@ function renderActivity(repo: RepoInfo): HTMLElement {
   return card;
 }
 
+/**
+ * 忽略變更與 info/exclude 放同一張卡：兩者都在回答「這個檔案 git 會不會盯著它」，
+ * 一個是已追蹤檔案的 update-index 旗標，一個是只在本機生效的排除樣式。
+ */
+function renderIgnore(repo: RepoInfo, handlers: RenderHandlers): HTMLElement {
+  const card = section('忽略變更', 'Ignored changes', 'wide');
+  card.append(renderActiveFile(repo.activeFile, handlers));
+
+  const groups = el('div', 'ignore-groups');
+  groups.append(renderIgnoredChanges(repo.ignore, handlers));
+  groups.append(renderExclude(repo.ignore, handlers));
+  card.append(groups);
+  return card;
+}
+
+/** 這一段的判斷對象是「按下刷新的當下開著的那個檔案」，所以第一列先把檔案本身標出來。 */
+function renderActiveFile(status: ActiveFileStatus | null, handlers: RenderHandlers): HTMLElement {
+  const box = subsection('目前檔案', 'Active file');
+
+  if (!status) {
+    box.append(el('div', 'muted', '目前沒有開啟任何檔案'));
+    return box;
+  }
+  if (status.relativePath === null) {
+    box.append(el('div', 'muted', '目前開啟的檔案不在這個儲存庫裡'));
+    box.append(pathButton(status.path, handlers));
+    return box;
+  }
+
+  const flags = flagNames(status);
+  const ignored = flags.length > 0;
+  box.append(
+    statList([
+      { label: '檔案', sub: 'File', value: pathButton(status.relativePath, handlers) },
+      {
+        label: '忽略變更',
+        sub: 'update-index',
+        value: boolValue(ignored, ignored ? `是（${flags.join('、')}）` : '否'),
+      },
+      {
+        label: 'info/exclude',
+        sub: 'Excluded by',
+        value: boolValue(status.excludedBy !== null, status.excludedBy === null ? '否' : `是（${status.excludedBy}）`),
+      },
+    ]),
+  );
+
+  if (!status.tracked) {
+    box.append(el('div', 'hint', 'git 沒有追蹤這個檔案，沒有變更可以忽略'));
+    return box;
+  }
+
+  const relativePath = status.relativePath;
+  const label = ignored ? '恢復追蹤變更' : '取消追蹤變更';
+  const toggle = button(label, 'link', () => handlers.onSetSkipWorktree(relativePath, !ignored));
+  toggle.title = ignored
+    ? '清掉 skip-worktree 與 assume-unchanged，本機修改重新出現在 git 狀態裡'
+    : '標記 skip-worktree，本機修改不再出現在 git 狀態裡';
+  box.append(toggle);
+  return box;
+}
+
+function renderIgnoredChanges(ignore: IgnoreInfo, handlers: RenderHandlers): HTMLElement {
+  const box = groupBox(`忽略變更的檔案（${ignore.totalChanges}）`);
+
+  if (ignore.indexUnreadable) {
+    box.append(el('div', 'muted', '讀不到 .git/index，或它的版本這裡解不開'));
+    return box;
+  }
+  if (ignore.changes.length === 0) {
+    box.append(el('div', 'muted', '沒有被標記忽略變更的檔案'));
+    return box;
+  }
+
+  const list = el('ul', 'path-list');
+  for (const change of ignore.changes) {
+    const item = el('li', 'path-item');
+    item.append(pathButton(change.path, handlers));
+    item.append(el('span', 'flag', flagNames(change).join('、')));
+    list.append(item);
+  }
+  box.append(list);
+
+  if (ignore.changes.length < ignore.totalChanges) {
+    box.append(el('div', 'hint', `只列出前 ${ignore.changes.length} 筆，共 ${ignore.totalChanges} 筆`));
+  }
+  return box;
+}
+
+function renderExclude(ignore: IgnoreInfo, handlers: RenderHandlers): HTMLElement {
+  const box = groupBox('info/exclude');
+
+  if (!ignore.excludeExists) {
+    box.append(el('div', 'muted', '沒有 .git/info/exclude'));
+    return box;
+  }
+  if (ignore.excludeLines.length === 0) {
+    box.append(el('div', 'muted', '檔案是空的'));
+    return box;
+  }
+
+  const lines = el('div', 'exclude-lines');
+  for (const line of ignore.excludeLines) {
+    lines.append(el('div', line.trimStart().startsWith('#') ? 'exclude-line comment' : 'exclude-line', line));
+  }
+  box.append(lines);
+  box.append(openExcludeButton(ignore, handlers));
+  return box;
+}
+
+/** 只在檔案真的存在時才畫，不然點了只會跳一個開不了的錯誤。 */
+function openExcludeButton(ignore: IgnoreInfo, handlers: RenderHandlers): HTMLElement {
+  const open = button('開啟 info/exclude', 'link', () => handlers.onOpenFile(ignore.excludePath));
+  open.title = ignore.excludePath;
+  return open;
+}
+
+function flagNames(entry: { skipWorktree: boolean; assumeUnchanged: boolean }): string[] {
+  const names: string[] = [];
+  if (entry.skipWorktree) {
+    names.push('skip-worktree');
+  }
+  if (entry.assumeUnchanged) {
+    names.push('assume-unchanged');
+  }
+  return names;
+}
+
+function boolValue(on: boolean, text: string): HTMLElement {
+  return el('span', `bool ${on}`, text);
+}
+
+/** 路徑中間省略，完整值留在 title，點一下複製原本那串。 */
+function pathButton(target: string, handlers: RenderHandlers): HTMLButtonElement {
+  const element = button(middleEllipsis(target, LIST_PATH_MAX_LENGTH), 'path', () => handlers.onCopy(target, '路徑'));
+  element.title = `${target}\n點擊複製路徑`;
+  return element;
+}
+
+/** 沿用「其他設定」那種內嵌小框，卡片裡並排兩三塊時看得出各是一件事。 */
+function groupBox(title: string): HTMLElement {
+  const box = el('div', 'group');
+  box.append(el('div', 'group-title', title));
+  return box;
+}
+
 function renderReadme(
   readme: NonNullable<RepoInfo['readme']>,
   projectName: string | null,
@@ -425,7 +575,11 @@ function button(label: string, className: string, onClick: () => void): HTMLButt
   return element;
 }
 
-/** 只有圖示的按鈕：label 走 aria-label，讀螢幕與測試都還找得到它。 */
+/**
+ * 只有圖示的按鈕：label 走 aria-label，讀螢幕與測試都還找得到它。
+ * 說明文字走 data-tooltip 交給 CSS 自己畫，不用原生 title——title 要停一秒才跳出來，
+ * 一排看不出差別的圖示按鈕等不起這一秒。
+ */
 function iconButton(
   label: string,
   icon: IconName,
@@ -436,7 +590,7 @@ function iconButton(
   const element = document.createElement('button');
   element.className = `icon-button ${className}`;
   element.setAttribute('aria-label', label);
-  element.title = tooltip;
+  element.setAttribute('data-tooltip', tooltip);
   element.append(iconElement(icon));
   element.addEventListener('click', onClick);
   return element;

@@ -96,6 +96,45 @@ export interface EnvironmentInfo {
   workflows: string[];
 }
 
+/** .git/index 裡被標記成「忽略變更」的一筆檔案。兩個旗標都是 git update-index 加上去的。 */
+export interface IgnoredChange {
+  /** 相對儲存庫根目錄、一律用 / 分隔（index 裡本來就是這個形式）。 */
+  path: string;
+  /** update-index --assume-unchanged。 */
+  assumeUnchanged: boolean;
+  /** update-index --skip-worktree，Fork 的「Ignore changes」用的是這個。 */
+  skipWorktree: boolean;
+}
+
+/** 忽略變更的清單與 .git/info/exclude 的內容。 */
+export interface IgnoreInfo {
+  /** 最多 IGNORED_CHANGE_LIMIT 筆，sparse checkout 會標到上萬個檔案。 */
+  changes: IgnoredChange[];
+  /** 實際被標記的總筆數，可能大於 changes 的長度。 */
+  totalChanges: number;
+  /** .git/index 讀不到或版本不支援，清單不可信。 */
+  indexUnreadable: boolean;
+  /** info/exclude 的絕對路徑。 */
+  excludePath: string;
+  excludeExists: boolean;
+  /** info/exclude 的原始行，含註解與空行，照原樣顯示。 */
+  excludeLines: string[];
+}
+
+/** 作用中編輯器那個檔案在忽略設定裡的處境。 */
+export interface ActiveFileStatus {
+  /** 絕對路徑。 */
+  path: string;
+  /** 相對儲存庫根目錄；檔案不在這個儲存庫裡時為 null。 */
+  relativePath: string | null;
+  /** 在 .git/index 裡有這一筆，也就是 git 有在追蹤它。沒追蹤的檔案沒有旗標可切換。 */
+  tracked: boolean;
+  assumeUnchanged: boolean;
+  skipWorktree: boolean;
+  /** info/exclude 裡命中的那一行原文，沒命中為 null。 */
+  excludedBy: string | null;
+}
+
 export interface RepoInfo {
   repoRoot: string;
   gitDir: string;
@@ -116,6 +155,9 @@ export interface RepoInfo {
   /** 找不到 README 時為 null。 */
   readme: ReadmeSummary | null;
   environment: EnvironmentInfo;
+  ignore: IgnoreInfo;
+  /** 沒有作用中的檔案編輯器時為 null。 */
+  activeFile: ActiveFileStatus | null;
   /** 讀取過程中的降級訊息；有值不代表整體失敗。 */
   warnings: string[];
 }

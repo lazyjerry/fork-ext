@@ -4,6 +4,19 @@
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-09-01
+
+### Added
+
+- **忽略變更卡片**：直接解 `.git/index` 的旗標，列出被 `git update-index --skip-worktree`／`--assume-unchanged` 標記的檔案，並顯示 `.git/info/exclude` 的原始內容。路徑過長時中間省略，點一下複製完整相對路徑。
+- 面板會標出**目前開啟的那個檔案**有沒有被標記忽略變更、或被 `info/exclude` 的哪一條樣式排除。
+- **取消／恢復追蹤變更**按鈕：對目前的檔案切換 `skip-worktree` 旗標，執行前跳確認對話框列出實際指令與後果。這是本擴充唯一會寫入 git 狀態、也是唯一呼叫 `git` 指令的動作（讀取端仍然完全不依賴 git）。恢復時分兩次呼叫 `--no-skip-worktree` 與 `--no-assume-unchanged`，因為 `update-index` 一次只套用一個 mark 旗標。
+- **開啟 `info/exclude`** 按鈕：在編輯器直接打開該檔編輯，檔案不存在時不顯示按鈕。
+
+### Changed
+
+- 工具列圖示按鈕的說明改由 CSS 自繪，滑鼠停留立刻顯示，不必等原生 tooltip 的延遲。
+
 ## [0.1.6] - 2026-08-29
 
 ### Added

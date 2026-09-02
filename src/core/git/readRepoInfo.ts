@@ -5,6 +5,7 @@ import { readActivity } from './readActivity';
 import { readEnvironment } from './readEnvironment';
 import { readFileTail, readTextFile } from './fsRead';
 import { parseGitConfig } from './parseConfig';
+import { readIgnoreState } from './readIgnoreState';
 import { readScale } from './readScale';
 import type { ConfigGroup, GitConfigEntry, RemoteInfo, RepoInfo, RepoLocation, UpstreamInfo } from './types';
 
@@ -17,11 +18,16 @@ const CHECKOUT_LINE = /checkout: moving from (\S+) to (\S+)/;
 /** remote.* 與 branch.* 已在專屬區塊呈現，不重複列進「其他設定」。 */
 const CONSUMED_SECTIONS = new Set(['remote', 'branch']);
 
+export interface ReadRepoOptions {
+  /** 作用中編輯器的檔案絕對路徑，用來判斷這個檔案有沒有被忽略變更或排除。 */
+  activeFile?: string | null;
+}
+
 /**
  * 讀出面板要顯示的全部欄位。任何一份檔案讀不到都只降級成 warning，不拋例外，
  * 讓面板至少能顯示拿得到的部分。
  */
-export async function readRepoInfo(location: RepoLocation): Promise<RepoInfo> {
+export async function readRepoInfo(location: RepoLocation, options: ReadRepoOptions = {}): Promise<RepoInfo> {
   const warnings: string[] = [];
   const commonDir = await resolveCommonDir(location.gitDir);
 
@@ -30,7 +36,7 @@ export async function readRepoInfo(location: RepoLocation): Promise<RepoInfo> {
   const entries = await readConfigEntries(commonDir, warnings);
 
   // 這幾份互不相干，一起讀比串著讀快，而且每一份自己吞掉讀不到的情況。
-  const [recentBranches, stashCount, activity, scale, project, readme, environment] = await Promise.all([
+  const [recentBranches, stashCount, activity, scale, project, readme, environment, ignoreState] = await Promise.all([
     readRecentBranches(location.gitDir, head.branch),
     readStashCount(commonDir),
     readActivity(location.gitDir),
@@ -38,6 +44,13 @@ export async function readRepoInfo(location: RepoLocation): Promise<RepoInfo> {
     readProjectIdentity(location.repoRoot),
     readReadme(location.repoRoot),
     readEnvironment(location.repoRoot, commonDir),
+    readIgnoreState({
+      repoRoot: location.repoRoot,
+      gitDir: location.gitDir,
+      commonDir,
+      activeFile: options.activeFile ?? null,
+      oidLength: objectIdLength(entries),
+    }),
   ]);
 
   return {
@@ -56,6 +69,8 @@ export async function readRepoInfo(location: RepoLocation): Promise<RepoInfo> {
     project,
     readme,
     environment,
+    ignore: ignoreState.ignore,
+    activeFile: ignoreState.activeFile,
     warnings,
   };
 }
@@ -139,6 +154,12 @@ async function readConfigEntries(commonDir: string, warnings: string[]): Promise
     return [];
   }
   return parseGitConfig(raw);
+}
+
+/** SHA-256 儲存庫的 index 裡每筆物件 ID 是 32 bytes，拿 20 去解會整份錯位。 */
+function objectIdLength(entries: GitConfigEntry[]): number {
+  const format = entries.find((entry) => entry.section === 'extensions' && entry.key === 'objectformat');
+  return format?.value.trim().toLowerCase() === 'sha256' ? 32 : 20;
 }
 
 function collectRemotes(entries: GitConfigEntry[]): RemoteInfo[] {

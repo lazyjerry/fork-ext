@@ -23,6 +23,7 @@ suite('webview render', () => {
       onGitAutoPush: () => calls.push('autoPush'),
       onOpenFile: (target) => calls.push(`openFile:${target}`),
       onCopy: (text, label) => calls.push(`copy:${label}:${text}`),
+      onSetSkipWorktree: (relativePath, ignore) => calls.push(`skipWorktree:${ignore}:${relativePath}`),
     };
   });
 
@@ -100,10 +101,10 @@ suite('webview render', () => {
     const root = draw({ repo: repo() });
 
     assert.deepEqual(
-      findAll(root, 'group-title').map((element) => element.textContent),
+      findAll(card(root, '其他設定')!, 'group-title').map((element) => element.textContent),
       ['core', 'include'],
     );
-    assert.equal(findOne(root, 'bool')?.textContent, 'false');
+    assert.equal(findOne(card(root, '其他設定')!, 'bool')?.textContent, 'false');
     assert.ok(
       findAll(root, 'hint').some((element) => element.textContent === '此設定引入了外部檔案，內容未展開'),
     );
@@ -127,23 +128,23 @@ suite('webview render', () => {
     assert.deepEqual(calls, ['refresh', 'open', 'autoPush', 'folder', 'remote', `copy:完整 SHA:${SHA}`]);
   });
 
-  test('工具列按鈕只放圖示，名稱走 aria-label 與 title', () => {
+  test('工具列按鈕只放圖示，名稱走 aria-label 與 data-tooltip', () => {
     const root = draw({ repo: repo() });
 
     for (const label of ['刷新', 'Auto Push', '開啟資料夾', '開啟遠端網頁', '在 Fork 中開啟']) {
       const element = findButton(root, label);
       assert.equal(element?.textContent, '', `${label} 不該有文字`);
       assert.equal(element?.children[0]?.tagName, 'svg', `${label} 應該有圖示`);
-      assert.ok((element?.title.length ?? 0) > 0, `${label} 應該有 tooltip`);
+      assert.ok(element?.attributes.get('data-tooltip')?.startsWith(label), `${label} 的 tooltip 要以按鈕名稱開頭`);
     }
   });
 
-  test('設定卡片橫跨整列，其餘卡片留在兩欄格線裡', () => {
-    const root = draw({ repo: repo() });
-    const wide = findAll(root, 'wide');
+  test('忽略變更與設定橫跨整列，其餘卡片留在格線裡', () => {
+    const wide = findAll(draw({ repo: repo() }), 'wide');
 
-    assert.equal(wide.length, 1);
-    assert.ok(wide[0].textContent.startsWith('其他設定'));
+    assert.equal(wide.length, 2);
+    assert.ok(wide[0].textContent.startsWith('忽略變更'));
+    assert.ok(wide[1].textContent.startsWith('其他設定'));
   });
 
   test('專案卡畫出名稱、版本與規模數字', () => {
@@ -192,11 +193,163 @@ suite('webview render', () => {
     assert.equal(entryValues(card(withoutEnvironment, '專案')!).length, 5);
   });
 
-  test('卡片固定四張：三張窄卡加一張滿版設定卡', () => {
+  test('卡片固定五張：三張窄卡加兩張滿版卡', () => {
     const titles = findAll(draw({ repo: repo() }), 'card').map(
       (element) => findOne(element, 'title-main')?.textContent,
     );
-    assert.deepEqual(titles, ['HEAD', '專案', '最近提交', '其他設定']);
+    assert.deepEqual(titles, ['HEAD', '專案', '最近提交', '忽略變更', '其他設定']);
+  });
+
+  test('目前檔案的忽略變更與 info/exclude 各給一個是非', () => {
+    const values = entryValues(card(draw({ repo: repo() }), '忽略變更')!);
+
+    assert.deepEqual(values, ['config/local.json', '是（skip-worktree）', '否']);
+  });
+
+  test('命中 info/exclude 時把樣式原文一起標出來', () => {
+    const root = draw({
+      repo: repo({
+        activeFile: {
+          path: '/tmp/demo/local.env',
+          relativePath: 'local.env',
+          tracked: true,
+          assumeUnchanged: false,
+          skipWorktree: false,
+          excludedBy: '*.env',
+        },
+      }),
+    });
+
+    assert.deepEqual(entryValues(card(root, '忽略變更')!), ['local.env', '否', '是（*.env）']);
+  });
+
+  test('沒有作用中的檔案，或檔案不在儲存庫裡，各講一句話', () => {
+    const none = card(draw({ repo: repo({ activeFile: null }) }), '忽略變更')!;
+    const outside = card(
+      draw({
+        repo: repo({
+          activeFile: {
+            path: '/elsewhere/a.ts',
+            relativePath: null,
+            tracked: false,
+            assumeUnchanged: false,
+            skipWorktree: false,
+            excludedBy: null,
+          },
+        }),
+      }),
+      '忽略變更',
+    )!;
+
+    assert.equal(findOne(none, 'muted')?.textContent, '目前沒有開啟任何檔案');
+    assert.equal(findOne(outside, 'muted')?.textContent, '目前開啟的檔案不在這個儲存庫裡');
+  });
+
+  test('忽略變更清單與 info/exclude 的內容都畫出來，路徑點了會複製', () => {
+    const root = draw({ repo: repo() });
+    const paths = findAll(root, 'path');
+
+    assert.deepEqual(
+      findAll(root, 'exclude-line').map((element) => element.textContent),
+      ['# 本機專用', '*.env'],
+    );
+    // 第一個是「目前檔案」那一列，第二個是清單裡那一筆。
+    assert.equal(paths.length, 2);
+    paths[1].click();
+    assert.deepEqual(calls, ['copy:路徑:config/local.json']);
+  });
+
+  test('index 讀不到時直說，不畫出一份看起來像空的清單', () => {
+    const root = draw({
+      repo: repo({
+        ignore: {
+          changes: [],
+          totalChanges: 0,
+          indexUnreadable: true,
+          excludePath: '/tmp/demo/.git/info/exclude',
+          excludeExists: false,
+          excludeLines: [],
+        },
+      }),
+    });
+
+    assert.deepEqual(
+      findAll(card(root, '忽略變更')!, 'muted').map((element) => element.textContent),
+      ['讀不到 .git/index，或它的版本這裡解不開', '沒有 .git/info/exclude'],
+    );
+  });
+
+  test('已標記時按鈕是恢復，未標記時是取消，送出的目標狀態相反', () => {
+    const ignored = draw({ repo: repo() });
+    findButton(ignored, '恢復追蹤變更')?.click();
+
+    const plain = draw({
+      repo: repo({
+        activeFile: {
+          path: '/tmp/demo/src/a.ts',
+          relativePath: 'src/a.ts',
+          tracked: true,
+          assumeUnchanged: false,
+          skipWorktree: false,
+          excludedBy: null,
+        },
+      }),
+    });
+    findButton(plain, '取消追蹤變更')?.click();
+
+    assert.deepEqual(calls, ['skipWorktree:false:config/local.json', 'skipWorktree:true:src/a.ts']);
+  });
+
+  test('沒被追蹤的檔案不給切換按鈕，只說明原因', () => {
+    const root = draw({
+      repo: repo({
+        activeFile: {
+          path: '/tmp/demo/new.ts',
+          relativePath: 'new.ts',
+          tracked: false,
+          assumeUnchanged: false,
+          skipWorktree: false,
+          excludedBy: null,
+        },
+      }),
+    });
+
+    assert.equal(findButton(root, '取消追蹤變更'), undefined);
+    assert.equal(findButton(root, '恢復追蹤變更'), undefined);
+    assert.ok(
+      findAll(root, 'hint').some((element) => element.textContent === 'git 沒有追蹤這個檔案，沒有變更可以忽略'),
+    );
+  });
+
+  test('info/exclude 存在才給開啟按鈕，送出的是完整路徑', () => {
+    const root = draw({ repo: repo() });
+    findButton(root, '開啟 info/exclude')?.click();
+
+    assert.deepEqual(calls, ['openFile:/tmp/demo/.git/info/exclude']);
+  });
+
+  test('沒有 info/exclude 時連按鈕都不畫', () => {
+    const root = draw({
+      repo: repo({
+        ignore: {
+          changes: [],
+          totalChanges: 0,
+          indexUnreadable: false,
+          excludePath: '/tmp/demo/.git/info/exclude',
+          excludeExists: false,
+          excludeLines: [],
+        },
+      }),
+    });
+
+    assert.equal(findButton(root, '開啟 info/exclude'), undefined);
+  });
+
+  test('圖示按鈕帶得走說明文字，hover 時由 CSS 畫出來', () => {
+    const root = draw({ repo: repo() });
+
+    assert.equal(findButton(root, '刷新')?.attributes.get('data-tooltip'), '刷新');
+    assert.match(findButton(root, 'Auto Push')?.attributes.get('data-tooltip') ?? '', /^Auto Push：/);
   });
 
   test('設定的鍵名旁邊掛中文說明，查得到的才標', () => {
@@ -281,6 +434,22 @@ function repo(overrides: Partial<RepoInfo> = {}): RepoInfo {
       license: 'Apache-2.0',
     },
     readme: { path: '/tmp/demo/README.md', fileName: 'README.md', title: 'forrrk', body: '面板說明' },
+    ignore: {
+      changes: [{ path: 'config/local.json', assumeUnchanged: false, skipWorktree: true }],
+      totalChanges: 1,
+      indexUnreadable: false,
+      excludePath: '/tmp/demo/.git/info/exclude',
+      excludeExists: true,
+      excludeLines: ['# 本機專用', '*.env'],
+    },
+    activeFile: {
+      path: '/tmp/demo/config/local.json',
+      relativePath: 'config/local.json',
+      tracked: true,
+      assumeUnchanged: false,
+      skipWorktree: true,
+      excludedBy: null,
+    },
     environment: { submodules: ['docs'], worktrees: [], hooks: ['pre-commit'], lfs: false, workflows: ['ci.yml'] },
     warnings: [],
     ...overrides,
