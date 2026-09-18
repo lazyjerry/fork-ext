@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { readProjectIdentity, readReadme } from '../../src/core/project/readProject';
@@ -75,5 +76,33 @@ suite('readProject', () => {
 
   test('沒有 README 時回 null', async () => {
     assert.equal(await readReadme(root), null);
+  });
+
+  test('README 是 symlink 時不跟隨（指向 /dev/zero 不會整份讀入）', async function () {
+    if (process.platform === 'win32') {
+      this.skip();
+    }
+    await fs.symlink('/dev/zero', path.join(root, 'README.md'));
+    assert.equal(await readReadme(root), null);
+  });
+
+  test('大 README 仍取得標題與首段', async () => {
+    await writeFile(root, 'README.md', ['# 大檔', '', '第一段。', '', 'x'.repeat(2 * 1024 * 1024)].join('\n'));
+
+    const readme = await readReadme(root);
+
+    assert.equal(readme?.title, '大檔');
+    assert.equal(readme?.body, '第一段。');
+  });
+
+  test('宣告檔與 LICENSE 是 symlink 時略過', async function () {
+    if (process.platform === 'win32') {
+      this.skip();
+    }
+    await writeFile(root, 'outside.json', JSON.stringify({ name: 'secret' }));
+    await fs.symlink(path.join(root, 'outside.json'), path.join(root, 'package.json'));
+    await fs.symlink('/dev/zero', path.join(root, 'LICENSE'));
+
+    assert.equal(await readProjectIdentity(root), null);
   });
 });

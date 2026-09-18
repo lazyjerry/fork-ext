@@ -25,6 +25,27 @@ export type HostMessage =
     }
   | { type: 'notice'; level: 'info' | 'warn' | 'error'; message: string };
 
+/** webview 送來的東西不可信：type 要是已知的，帶欄位的訊息連欄位型別一起檢查。 */
 export function isClientMessage(value: unknown): value is ClientMessage {
-  return typeof value === 'object' && value !== null && typeof (value as { type?: unknown }).type === 'string';
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+  const message = value as Record<string, unknown>;
+  switch (message.type) {
+    case 'ready':
+    case 'refresh':
+    case 'openInFork':
+    case 'openFolder':
+    case 'openRemote':
+    case 'gitAutoPush':
+      return true;
+    case 'openFile':
+      return typeof message.path === 'string';
+    case 'setSkipWorktree':
+      return typeof message.path === 'string' && typeof message.ignore === 'boolean';
+    case 'copyText':
+      return typeof message.text === 'string' && typeof message.label === 'string';
+    default:
+      return false;
+  }
 }

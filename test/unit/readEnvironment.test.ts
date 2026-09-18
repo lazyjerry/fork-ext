@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
 import { readEnvironment } from '../../src/core/git/readEnvironment';
@@ -39,5 +40,20 @@ suite('readEnvironment', () => {
     const environment = await readEnvironment(root, path.join(root, '.git'));
 
     assert.deepEqual(environment, { submodules: [], worktrees: [], hooks: [], lfs: false, workflows: [] });
+  });
+
+  test('.gitmodules 與 .gitattributes 是 symlink 時不跟隨', async function () {
+    if (process.platform === 'win32') {
+      this.skip();
+    }
+    await writeFile(root, 'real-modules', '[submodule "docs"]\n\tpath = docs\n');
+    await writeFile(root, 'real-attributes', '*.psd filter=lfs\n');
+    await fs.symlink(path.join(root, 'real-modules'), path.join(root, '.gitmodules'));
+    await fs.symlink(path.join(root, 'real-attributes'), path.join(root, '.gitattributes'));
+
+    const environment = await readEnvironment(root, path.join(root, '.git'));
+
+    assert.deepEqual(environment.submodules, []);
+    assert.equal(environment.lfs, false);
   });
 });
