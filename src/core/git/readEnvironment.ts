@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { listDirectory, readTextFile } from './fsRead';
+import { listDirectory, readWorktreeTextFile } from './fsRead';
 import { parseGitConfig } from './parseConfig';
 import type { EnvironmentInfo } from './types';
 
@@ -18,7 +18,7 @@ export async function readEnvironment(repoRoot: string, commonDir: string): Prom
 }
 
 async function readSubmodules(repoRoot: string): Promise<string[]> {
-  const raw = await readTextFile(path.join(repoRoot, '.gitmodules'));
+  const raw = await readWorktreeTextFile(path.join(repoRoot, '.gitmodules'));
   if (!raw) {
     return [];
   }
@@ -46,7 +46,7 @@ async function readInstalledHooks(commonDir: string): Promise<string[]> {
 }
 
 async function hasLfs(repoRoot: string): Promise<boolean> {
-  const raw = await readTextFile(path.join(repoRoot, '.gitattributes'));
+  const raw = await readWorktreeTextFile(path.join(repoRoot, '.gitattributes'));
   return raw !== null && raw.includes('filter=lfs');
 }
 

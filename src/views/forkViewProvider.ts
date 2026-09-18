@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -15,7 +16,10 @@ import {
 } from '../core/gitAutoPush/locateGitAutoPush';
 import { readRepoInfo } from '../core/git/readRepoInfo';
 import { pickPrimaryRemote, toRemoteWebUrl } from '../core/git/remoteWebUrl';
+import { runGit } from '../core/git/runGit';
 import type { RepoInfo, RepoLocation } from '../core/git/types';
+import { isMacBundlePath } from '../core/os/macBundle';
+import { decideGitGate } from '../core/workspace/workspaceGate';
 import type { ClientMessage, HostMessage } from '../shared/protocol';
 import { isClientMessage } from '../shared/protocol';
 
@@ -153,6 +157,17 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     }
 
     const action = ignore ? '取消追蹤變更' : '恢復追蹤變更';
+    // 面板讀取不跑 git，照常顯示；只有這個寫入動作要跑 git，所以只擋這裡。
+    const gate = await decideGitGate(path.join(location.repoRoot, relativePath), {
+      trusted: vscode.workspace.isTrusted,
+      folders: (vscode.workspace.workspaceFolders ?? []).filter((folder) => folder.uri.scheme === 'file').map((folder) => folder.uri.fsPath),
+    });
+    if (gate !== 'allowed') {
+      const why = gate === 'untrusted-workspace' ? '工作區未受信任' : '檔案不在工作區內';
+      void vscode.window.showWarningMessage(`forrrk：${why}，未執行 git，無法${action}。`);
+      return;
+    }
+
     const picked = await vscode.window.showWarningMessage(
       `forrrk：要對 ${relativePath} ${action}嗎？`,
       { modal: true, detail: confirmDetail(relativePath, ignore) },
@@ -167,7 +182,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     const flagSets = ignore ? [['--skip-worktree']] : [['--no-skip-worktree'], ['--no-assume-unchanged']];
     for (const flags of flagSets) {
       try {
-        await execFileAsync('git', ['-C', location.repoRoot, 'update-index', ...flags, '--', relativePath], {
+        await runGit(['-C', location.repoRoot, 'update-index', ...flags, '--', relativePath], {
           timeout: GIT_COMMAND_TIMEOUT_MS,
         });
       } catch (error) {
@@ -194,7 +209,13 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       return;
     }
 
-    await vscode.env.openExternal(vscode.Uri.file(location.repoRoot));
+    const folderUri = vscode.Uri.file(location.repoRoot);
+    // 名為 *.app 這類 bundle 的資料夾交給 openExternal 會被 macOS 直接啟動，改成在 Finder 中選取它。
+    if (process.platform === 'darwin' && isMacBundlePath(location.repoRoot)) {
+      await vscode.commands.executeCommand('revealFileInOS', folderUri);
+      return;
+    }
+    await vscode.env.openExternal(folderUri);
   }
 
   /** 用預設瀏覽器開啟遠端網址對應的網頁。 */
@@ -425,11 +446,7 @@ function filePathOfEditor(editor: vscode.TextEditor | undefined): string | null 
   return uri.fsPath;
 }
 
+/** CSP nonce 要不可預測，用密碼學亂數；base64url 不含引號，可直接放進屬性值。 */
 function createNonce(): string {
-  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let nonce = '';
-  for (let index = 0; index < 32; index += 1) {
-    nonce += characters.charAt(Math.floor(Math.random() * characters.length));
-  }
-  return nonce;
+  return randomBytes(24).toString('base64url');
 }

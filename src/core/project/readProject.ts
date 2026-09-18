@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { listDirectory, readTextFile } from '../git/fsRead';
+import { listDirectory, readWorktreeTextFile } from '../git/fsRead';
 import type { ProjectIdentity, ReadmeSummary } from '../git/types';
 
 /** README 摘要只取這麼多字；面板是掃一眼的地方，不是閱讀器。 */
@@ -13,7 +13,7 @@ const MANIFESTS = ['package.json', 'pyproject.toml', 'Cargo.toml', 'composer.jso
 
 export async function readProjectIdentity(repoRoot: string): Promise<ProjectIdentity | null> {
   for (const fileName of MANIFESTS) {
-    const raw = await readTextFile(path.join(repoRoot, fileName));
+    const raw = await readWorktreeTextFile(path.join(repoRoot, fileName));
     if (raw === null) {
       continue;
     }
@@ -78,7 +78,7 @@ async function readLicense(repoRoot: string): Promise<string | null> {
     if (entry.isDirectory || !/^licen[cs]e(\.|$)/i.test(entry.name)) {
       continue;
     }
-    const raw = await readTextFile(path.join(repoRoot, entry.name));
+    const raw = await readWorktreeTextFile(path.join(repoRoot, entry.name));
     const firstLine = raw?.split(/\r?\n/).find((line) => line.trim() !== '')?.trim();
     if (firstLine) {
       return firstLine.length > 60 ? `${firstLine.slice(0, 60)}…` : firstLine;
@@ -97,7 +97,7 @@ export async function readReadme(repoRoot: string): Promise<ReadmeSummary | null
     return null;
   }
 
-  const raw = await readTextFile(path.join(repoRoot, fileName));
+  const raw = await readWorktreeTextFile(path.join(repoRoot, fileName));
   if (raw === null) {
     return null;
   }

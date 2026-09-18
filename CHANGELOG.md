@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-09-19
+
+### Security
+
+- 安全性修正：「取消／恢復追蹤變更」只對位於工作區資料夾內（解開 symlink 後比對）且工作區已受信任的檔案執行 `git update-index`。儲存庫可在 `.git/config` 設定 `filter.<名>.clean` 並搭配 `.gitattributes`，讓 `update-index` 在檔案 stat 資訊需重新比對時執行任意指令，這無法用 `-c` 全部關掉；工作區外的檔案改為提示「檔案不在工作區內，未執行 git」。純讀 `.git` 的面板顯示不受影響。
+
+## [0.1.8] - 2026-09-19
+
+### Security
+
+- 安全性修正：取消／恢復追蹤變更時呼叫的 `git update-index` 一律加上 `-c core.fsmonitor=false`，不會再執行該儲存庫 `.git/config` 裡 `core.fsmonitor` 指定的程式。之後所有 `git` 指令都經同一個入口送出。
+- 安全性修正：「開啟資料夾」遇到名稱像 macOS bundle 的儲存庫根目錄（如 `*.app`、`*.pkg`）時改為在 Finder 中選取該資料夾，避免被當成應用程式啟動；一般資料夾照舊直接開啟。
+- 安全性修正：README、專案宣告檔（`package.json` 等）、LICENSE、`.gitmodules`、`.gitattributes` 只讀一般檔案、不跟隨 symlink，且最多讀 1 MB，避免 symlink 指向 `/dev/zero` 之類的檔案時整份讀入耗盡記憶體。
+- 安全性修正：面板送回的訊息除了類型之外，連路徑、文字、切換旗標等欄位型別一起檢查；Webview 的 CSP nonce 改用密碼學亂數產生。
+- 在 `package.json` 宣告不支援受限模式（Restricted Mode）的工作區。
+
 ## [0.1.7] - 2026-09-01
 
 ### Added
