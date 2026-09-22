@@ -44,7 +44,13 @@ export async function locateFork(options: LocateForkOptions = {}): Promise<ForkA
   }
 
   const appPath = await findApp(platform, env, options.homeDir, exists);
-  return appPath ? { kind: 'appOnly', appPath } : { kind: 'missing' };
+  if (!appPath) {
+    return { kind: 'missing' };
+  }
+
+  // CLI 就躺在 app bundle 裡，symlink 只是捷徑：找到 app 就等於找到 CLI。
+  const bundledCli = await findCliInBundle(platform, appPath, isExecutable);
+  return bundledCli ? { kind: 'ready', cliPath: bundledCli } : { kind: 'appOnly', appPath };
 }
 
 async function findCliOnPath(
@@ -54,10 +60,9 @@ async function findCliOnPath(
 ): Promise<string | null> {
   const windows = platform === 'win32';
   const names = windows ? ['fork.exe', 'fork.cmd', 'fork.bat'] : ['fork'];
-  const directories = (env.PATH ?? env.Path ?? '').split(windows ? ';' : ':').filter(Boolean);
   const join = joinFor(platform);
 
-  for (const directory of directories) {
+  for (const directory of cliDirectories(platform, env)) {
     for (const name of names) {
       const candidate = join(directory, name);
       if (await isExecutable(candidate)) {
@@ -66,6 +71,37 @@ async function findCliOnPath(
     }
   }
   return null;
+}
+
+/**
+ * PATH 之後補上官方 fork_cli_install 建立 symlink 的位置。
+ * VS Code 從 Finder / Dock 啟動時只拿得到 launchd 的精簡 PATH（`/usr/bin:/bin:/usr/sbin:/sbin`），
+ * 補解析 login shell 環境又可能逾時，光掃 PATH 會把裝好的 CLI 誤判成沒裝。
+ */
+function cliDirectories(platform: NodeJS.Platform, env: NodeJS.ProcessEnv): string[] {
+  const windows = platform === 'win32';
+  const directories = (env.PATH ?? env.Path ?? '').split(windows ? ';' : ':').filter(Boolean);
+  if (!windows) {
+    directories.push('/usr/local/bin');
+  }
+  return [...new Set(directories)];
+}
+
+/**
+ * macOS 的最後一道：直接用 app bundle 內的執行檔，繞過 PATH 與 symlink。
+ * Windows 版沒有對應的 bundle 內 CLI，維持原本的 appOnly 提示。
+ */
+async function findCliInBundle(
+  platform: NodeJS.Platform,
+  appPath: string,
+  isExecutable: (target: string) => Promise<boolean>,
+): Promise<string | null> {
+  if (platform !== 'darwin') {
+    return null;
+  }
+
+  const candidate = path.posix.join(appPath, MAC_CLI_RELATIVE_PATH);
+  return (await isExecutable(candidate)) ? candidate : null;
 }
 
 async function findApp(

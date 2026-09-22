@@ -2,7 +2,7 @@
   "name": "forrrk",
   "displayName": "forrrk",
   "description": "在 VS Code 底部面板檢視目前儲存庫的 git 資訊與忽略變更設定，並一鍵用 Fork 開啟。",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "publisher": "workjerry",
   "license": "Apache-2.0",
   "repository": {
