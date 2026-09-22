@@ -4,6 +4,12 @@
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-09-21
+
+### Fixed
+
+- 修正 macOS 上明明裝了 Fork 命令列工具，面板卻仍跳出「偵測到 Fork 應用程式，但找不到 fork 命令列工具」的問題。VS Code 從 Finder／Dock 啟動時，extension host 只拿得到 launchd 的精簡 `PATH`（`/usr/bin:/bin:/usr/sbin:/sbin`），補解析 login shell 環境又可能逾時，原本只掃 `PATH` 的偵測因此看不到官方 symlink 所在的 `/usr/local/bin`。現在改成兩道：`PATH` 之後補掃 `/usr/local/bin`（與 `git-auto-push` 的偵測一致），再找不到就直接用 `Fork.app/Contents/Resources/fork_cli`——CLI 本來就躺在 app bundle 裡，找到 App 就等於找到 CLI，不必依賴 `PATH` 或 symlink。Windows 沒有對應的 bundle 內執行檔，維持原本的安裝提示。
+
 ## [0.1.9] - 2026-09-19
 
 ### Security
