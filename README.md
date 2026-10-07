@@ -15,6 +15,7 @@
 - **一鍵開啟遠端網頁**：用預設瀏覽器開啟遠端儲存庫的網頁。`git@host:owner/repo.git` 這種 SSH 網址會改寫成 `https://`，路徑不動，由 GitHub／GitLab 這類服務自行跳轉。
 - **一鍵開啟 Fork**：呼叫 `fork -C <repo> open`。沒有 CLI 時提示安裝步驟並附上可複製的指令，沒有 Fork 時導向下載頁，不是儲存庫時直接說清楚。
 - **一鍵 Auto Push**：在整合終端機執行 [git-auto-push](https://github.com/lazyjerry/git-auto-push) 的 `git-auto-push -a`（自動 add → commit → push）。沒安裝時提示安裝指令。
+- **只推目前檔案**：對目前開啟的檔案執行 `git-auto-push -a -f <檔案>`，只 add、commit、push 這一個檔案，不動儲存庫裡其他變更。
 - **完全離線**：不載入遠端資源、不傳送 telemetry、不主動呼叫任何網路服務（「開啟遠端網頁」是把網址交給你的瀏覽器；Auto Push 本身是你裝的外部工具，網路行為由它決定）。
 
 ## 顯示的資訊
@@ -42,13 +43,14 @@ linked worktree 與 submodule 的 `.git` 是指向別處的文字檔，兩者都
 
 ## 使用方式
 
-在底部 Panel 選擇 **forrrk**。工具列右側是五個圖示按鈕——刷新、Auto Push、開啟資料夾、開啟遠端網頁、在 Fork 中開啟，滑鼠停留可看名稱；資訊區以兩欄卡片排列，面板拉窄時自動退回一欄。也可從 Command Palette 執行：
+在底部 Panel 選擇 **forrrk**。工具列右側是六個圖示按鈕——刷新、Push 目前檔案、Auto Push、開啟資料夾、開啟遠端網頁、在 Fork 中開啟，滑鼠停留可看名稱；資訊區以兩欄卡片排列，面板拉窄時自動退回一欄。也可從 Command Palette 執行：
 
 | 指令 | 說明 |
 | --- | --- |
 | `Fork: Refresh Repository Info` | 重新定位儲存庫並讀取資訊 |
 | `Fork: Open Current Repository in Fork` | 用 Fork 開啟目前的儲存庫 |
 | `Fork: Run git-auto-push -a` | 在整合終端機執行 `git-auto-push -a` |
+| `Fork: Run git-auto-push -a for Current File Only` | 只對目前開啟的檔案執行 `git-auto-push -a -f <檔案>` |
 | `Fork: Open Repository Folder` | 用檔案管理員開啟儲存庫根目錄 |
 | `Fork: Open Remote Repository in Browser` | 用瀏覽器開啟遠端儲存庫的網頁 |
 
@@ -61,6 +63,8 @@ curl -fsSL https://raw.githubusercontent.com/lazyjerry/git-auto-push/refs/heads/
 ```
 
 它是 bash 腳本，Windows 原生終端機不支援。
+
+「Push 目前檔案」執行前會先跑兩個唯讀的 git 指令檢查：檔案沒有變更就不執行；暫存區已有**其他**檔案也不執行，並列出那些檔案。`-f` 只限縮 `git add` 的範圍，`git-auto-push` 的 commit 不帶路徑，暫存區裡的東西會被一起提交。檔案還沒存檔時會先問要不要存。這兩個 git 指令與「取消／恢復追蹤變更」一樣，只對已受信任工作區資料夾內的檔案執行。
 
 ## Fork 命令列工具
 

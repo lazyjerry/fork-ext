@@ -32,6 +32,9 @@ const handlers: RenderHandlers = {
   onGitAutoPush() {
     post({ type: 'gitAutoPush' });
   },
+  onGitAutoPushFile() {
+    post({ type: 'gitAutoPushFile' });
+  },
   onOpenFile(target) {
     post({ type: 'openFile', path: target });
   },

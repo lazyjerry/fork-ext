@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
+import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -14,6 +15,7 @@ import {
   GIT_AUTO_PUSH_REPO_URL,
   locateGitAutoPush,
 } from '../core/gitAutoPush/locateGitAutoPush';
+import { fileScopeArgs, otherStagedPaths } from '../core/gitAutoPush/fileScope';
 import { readRepoInfo } from '../core/git/readRepoInfo';
 import { pickPrimaryRemote, toRemoteWebUrl } from '../core/git/remoteWebUrl';
 import { runGit } from '../core/git/runGit';
@@ -145,7 +147,7 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
   /**
    * 切換「忽略變更」：標記或清除 .git/index 上的 skip-worktree／assume-unchanged。
    *
-   * 這是整個延伸模組唯一會**寫入** git 狀態、也是唯一呼叫 git 指令的地方——旗標在 index 的二進位裡，
+   * 這是整個延伸模組唯一會**寫入** git 狀態的地方（另一處呼叫 git 是 gitAutoPushFile 的唯讀檢查）——旗標在 index 的二進位裡，
    * 自己改等於重寫整份 index，風險遠高於呼叫 git。讀取端仍然完全不依賴 git 指令。
    */
   private async setSkipWorktree(relativePath: string, ignore: boolean): Promise<void> {
@@ -262,19 +264,106 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       return;
     }
 
+    const cliPath = await this.resolveGitAutoPushCli();
+    if (cliPath) {
+      this.runInTerminal(cliPath, location.repoRoot, ['-a']);
+    }
+  }
+
+  /**
+   * 只對目前開啟的檔案執行 `git-auto-push -a -f <檔案>`，不碰 repo 裡其他變更。
+   * -f 只限縮 add，commit 會帶走整個暫存區，所以先確認暫存區沒有別的檔案；
+   * 這一步要跑 git，比照 update-index 只對受信任工作區內的檔案執行。
+   */
+  async gitAutoPushFile(): Promise<void> {
+    const file = this.resolveActiveFile();
+    if (!file) {
+      void vscode.window.showWarningMessage('forrrk：沒有開啟中的檔案。');
+      return;
+    }
+
+    const location = await discoverRepo(path.dirname(file));
+    if (!location) {
+      void vscode.window.showWarningMessage(`forrrk：這個檔案不在 git 儲存庫裡（${file}）`);
+      return;
+    }
+
+    const gate = await decideGitGate(file, {
+      trusted: vscode.workspace.isTrusted,
+      folders: (vscode.workspace.workspaceFolders ?? []).filter((folder) => folder.uri.scheme === 'file').map((folder) => folder.uri.fsPath),
+    });
+    if (gate !== 'allowed') {
+      const why = gate === 'untrusted-workspace' ? '工作區未受信任' : '檔案不在工作區內';
+      void vscode.window.showWarningMessage(`forrrk：${why}，未執行 git，無法只推送這個檔案。`);
+      return;
+    }
+
+    // 兩邊都解開 symlink 再算相對路徑，否則 repo 根與檔案路徑寫法不同時會算出 ../ 開頭。
+    const [realRoot, realFile] = await Promise.all([fs.realpath(location.repoRoot), fs.realpath(file)]);
+    const relativePath = path.relative(realRoot, realFile).split(path.sep).join('/');
+    if (relativePath === '' || relativePath.startsWith('../') || path.isAbsolute(relativePath)) {
+      void vscode.window.showWarningMessage(`forrrk：算不出 ${file} 在儲存庫內的路徑。`);
+      return;
+    }
+
+    const document = vscode.workspace.textDocuments.find(
+      (candidate) => candidate.uri.scheme === 'file' && candidate.uri.fsPath === file,
+    );
+    if (document?.isDirty) {
+      const picked = await vscode.window.showWarningMessage(
+        `forrrk：${relativePath} 還沒存檔。`,
+        { modal: true, detail: '未存檔的內容不會被提交。要先存檔再推送嗎？' },
+        '存檔並推送',
+      );
+      if (picked !== '存檔並推送' || !(await document.save())) {
+        return;
+      }
+    }
+
+    let changed: string;
+    let staged: string;
+    try {
+      changed = (await runGit(['-C', realRoot, 'status', '--porcelain', '-z', '--', relativePath], { timeout: GIT_COMMAND_TIMEOUT_MS })).stdout;
+      staged = (await runGit(['-C', realRoot, 'diff', '--cached', '--name-only', '-z'], { timeout: GIT_COMMAND_TIMEOUT_MS })).stdout;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      void vscode.window.showErrorMessage(`forrrk：讀取 git 狀態失敗（${detail}）`);
+      return;
+    }
+
+    if (changed === '') {
+      void vscode.window.showInformationMessage(`forrrk：${relativePath} 沒有變更，不需要推送。`);
+      return;
+    }
+    const others = otherStagedPaths(staged, relativePath);
+    if (others.length > 0) {
+      void vscode.window.showWarningMessage(`forrrk：暫存區已有其他檔案，會被一起提交，已取消。`, {
+        modal: true,
+        detail: `請先取消暫存下列檔案，或改用「Auto Push」：\n${others.join('\n')}`,
+      });
+      return;
+    }
+
+    const cliPath = await this.resolveGitAutoPushCli();
+    if (cliPath) {
+      this.runInTerminal(cliPath, realRoot, fileScopeArgs(relativePath));
+    }
+  }
+
+  /** 找到 git-auto-push 就回傳絕對路徑；找不到或平台不支援時提示使用者並回傳 null。 */
+  private async resolveGitAutoPushCli(): Promise<string | null> {
     const availability = await locateGitAutoPush({ homeDir: os.homedir() });
     switch (availability.kind) {
       case 'ready':
-        this.runInTerminal(availability.cliPath, location.repoRoot);
-        return;
+        return availability.cliPath;
       case 'missing':
         await this.promptGitAutoPushInstall();
-        return;
+        return null;
       case 'unsupportedPlatform':
         void vscode.window.showWarningMessage(
           `forrrk：git-auto-push 是 bash 腳本，不支援 ${availability.platform} 原生終端機。`,
         );
-        return;
+        return null;
     }
   }
 
@@ -299,6 +388,9 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
       case 'gitAutoPush':
         await this.gitAutoPush();
         return;
+      case 'gitAutoPushFile':
+        await this.gitAutoPushFile();
+        return;
       case 'setSkipWorktree':
         await this.setSkipWorktree(message.path, message.ignore);
         return;
@@ -318,13 +410,14 @@ export class ForkViewProvider implements vscode.WebviewViewProvider, vscode.Disp
     }
   }
 
-  private runInTerminal(cliPath: string, repoRoot: string): void {
+  private runInTerminal(cliPath: string, repoRoot: string, args: string[]): void {
     this.autoPushTerminal?.dispose();
     const terminal = vscode.window.createTerminal({ name: 'git-auto-push', cwd: repoRoot });
     this.autoPushTerminal = terminal;
     terminal.show();
-    // 用絕對路徑：~/.local/bin 常常不在終端機的 PATH 裡。單引號包住，路徑含空白也安全。
-    terminal.sendText(`'${cliPath.replace(/'/g, `'\\''`)}' -a`);
+    // 用絕對路徑：~/.local/bin 常常不在終端機的 PATH 裡。每個參數都單引號包住，路徑含空白也安全。
+    const quote = (value: string): string => `'${value.replace(/'/g, `'\\''`)}'`;
+    terminal.sendText([cliPath, ...args].map(quote).join(' '));
   }
 
   private async promptGitAutoPushInstall(): Promise<void> {

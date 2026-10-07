@@ -11,6 +11,7 @@ export type ClientMessage =
   | { type: 'openRemote' }
   | { type: 'openFile'; path: string }
   | { type: 'gitAutoPush' }
+  | { type: 'gitAutoPushFile' }
   | { type: 'setSkipWorktree'; path: string; ignore: boolean }
   | { type: 'copyText'; text: string; label: string };
 
@@ -38,6 +39,7 @@ export function isClientMessage(value: unknown): value is ClientMessage {
     case 'openFolder':
     case 'openRemote':
     case 'gitAutoPush':
+    case 'gitAutoPushFile':
       return true;
     case 'openFile':
       return typeof message.path === 'string';

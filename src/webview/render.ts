@@ -17,6 +17,7 @@ export interface RenderHandlers {
   onOpenFolder(): void;
   onOpenRemote(): void;
   onGitAutoPush(): void;
+  onGitAutoPushFile(): void;
   onCopy(text: string, label: string): void;
   onOpenFile(target: string): void;
   onSetSkipWorktree(relativePath: string, ignore: boolean): void;
@@ -54,6 +55,15 @@ function renderToolbar(state: ViewState, handlers: RenderHandlers): HTMLElement 
 
   const actions = el('div', 'toolbar-actions');
   actions.append(iconButton('刷新', 'refresh', 'solid', handlers.onRefresh, '刷新'));
+  actions.append(
+    iconButton(
+      'Push 目前檔案',
+      'pushFile',
+      'solid',
+      handlers.onGitAutoPushFile,
+      'Push 目前檔案：只對目前開啟的檔案執行 git-auto-push -a -f，不動其他變更',
+    ),
+  );
   actions.append(
     iconButton('Auto Push', 'push', 'solid', handlers.onGitAutoPush, 'Auto Push：在終端機執行 git-auto-push -a'),
   );
@@ -598,7 +608,7 @@ function iconButton(
 
 const SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 
-type IconName = 'refresh' | 'push' | 'folder' | 'globe' | 'fork';
+type IconName = 'refresh' | 'push' | 'pushFile' | 'folder' | 'globe' | 'fork';
 
 interface IconShape {
   tag: 'path' | 'circle';
@@ -617,6 +627,13 @@ const ICONS: Record<IconName, IconShape[]> = {
     { tag: 'path', attributes: { d: 'M12 20V5' } },
     { tag: 'path', attributes: { d: 'M6 11l6-6 6 6' } },
     { tag: 'path', attributes: { d: 'M4 3.5h16' } },
+  ],
+  // 文件外框裡放 push 的上箭頭：只推這一個檔案。
+  pushFile: [
+    { tag: 'path', attributes: { d: 'M14 3.5H7.1c-.9 0-1.6.7-1.6 1.6v13.8c0 .9.7 1.6 1.6 1.6h9.8c.9 0 1.6-.7 1.6-1.6V8z' } },
+    { tag: 'path', attributes: { d: 'M14 3.5V8h4.5' } },
+    { tag: 'path', attributes: { d: 'M12 17.5v-6' } },
+    { tag: 'path', attributes: { d: 'M9.5 14l2.5-2.5 2.5 2.5' } },
   ],
   folder: [
     { tag: 'path', attributes: { d: 'M3.5 18.4V6.6c0-.9.7-1.6 1.6-1.6h3.6l2.2 2.6h7.6c.9 0 1.6.7 1.6 1.6v9.2c0 .9-.7 1.6-1.6 1.6H5.1c-.9 0-1.6-.7-1.6-1.6z' } },

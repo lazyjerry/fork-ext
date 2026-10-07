@@ -13,6 +13,7 @@ suite('forrrk 延伸模組', () => {
     assert.ok(commands.includes('fork.refresh'));
     assert.ok(commands.includes('fork.openInFork'));
     assert.ok(commands.includes('fork.gitAutoPush'));
+    assert.ok(commands.includes('fork.gitAutoPushFile'));
     assert.ok(commands.includes('fork.openFolder'));
     assert.ok(commands.includes('fork.openRemote'));
 

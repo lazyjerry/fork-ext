@@ -72,6 +72,10 @@
         "title": "Fork: Run git-auto-push -a"
       },
       {
+        "command": "fork.gitAutoPushFile",
+        "title": "Fork: Run git-auto-push -a for Current File Only"
+      },
+      {
         "command": "fork.openFolder",
         "title": "Fork: Open Repository Folder"
       },

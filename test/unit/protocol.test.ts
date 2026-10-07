@@ -4,7 +4,7 @@ import { isClientMessage } from '../../src/shared/protocol';
 
 suite('isClientMessage', () => {
   test('webview 實際送出的訊息都接受', () => {
-    for (const type of ['ready', 'refresh', 'openInFork', 'openFolder', 'openRemote', 'gitAutoPush']) {
+    for (const type of ['ready', 'refresh', 'openInFork', 'openFolder', 'openRemote', 'gitAutoPush', 'gitAutoPushFile']) {
       assert.equal(isClientMessage({ type }), true, type);
     }
     assert.equal(isClientMessage({ type: 'openFile', path: '/repo/README.md' }), true);
