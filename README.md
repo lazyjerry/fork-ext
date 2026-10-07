@@ -20,14 +20,13 @@
 
 ## 顯示的資訊
 
-| 區塊 | 內容 | 來源 |
+資訊固定分成五張卡片：前三張並排，「忽略變更」與「其他設定」橫跨整列。
+
+| 卡片 | 內容 | 來源 |
 | --- | --- | --- |
-| HEAD 目前狀態 | 目前分支或 detached 標示、HEAD SHA（點擊複製完整值）、stash 筆數、最近切換過的分支 | `.git/HEAD`、`refs/`、`packed-refs`、`logs/HEAD`、`logs/refs/stash` |
-| 專案 Project | 專案名稱、版本、描述、授權、分支數、標籤數、packfile 佔用、上次 git 操作時間 | `package.json` 等宣告檔、`LICENSE`、`refs/`、`packed-refs`、`objects/`、`.git/index` |
+| HEAD 目前狀態與遠端 | 目前分支或 detached 標示、HEAD SHA（點擊複製完整值）、stash 筆數、最近切換過的分支；每個 remote 的網域與路徑分兩欄列出，push URL 不同時另列一行，並標出目前分支的上游追蹤 | `.git/HEAD`、`refs/`、`packed-refs`、`logs/HEAD`、`logs/refs/stash`、`.git/config` |
+| 專案 Project | 專案名稱、版本、描述、授權、分支數、標籤數、packfile 佔用、上次 git 操作時間；有用到才列出的 submodule、linked worktree、已安裝的 hook、Git LFS、CI workflow；README 的首個標題與第一段敘述，可點擊在編輯器開啟 | `package.json` 等宣告檔、`LICENSE`、`refs/`、`packed-refs`、`objects/`、`.git/index`、`.gitmodules`、`.git/worktrees`、`.git/hooks`、`.gitattributes`、`.github/workflows`、repo 根目錄的 `README.md` |
 | 最近提交 Recent commits | 最近 5 次提交的訊息、作者、時間與短 SHA，近 7／30 天提交次數、出現過的作者 | `.git/logs/HEAD` |
-| README | README 的首個標題與第一段敘述，可點擊在編輯器開啟 | repo 根目錄的 `README.md` |
-| 遠端 Remotes | 每個 remote 的 URL 與 push URL、目前分支的上游追蹤 | `.git/config` |
-| 環境 Environment | submodule、linked worktree、已安裝的 hook、Git LFS、CI workflow | `.gitmodules`、`.git/worktrees`、`.git/hooks`、`.gitattributes`、`.github/workflows` |
 | 忽略變更 Ignored changes | 目前開啟的檔案有沒有被標記忽略變更（`skip-worktree`／`assume-unchanged`）或被 `info/exclude` 排除，加上全部被標記的檔案清單與 `info/exclude` 的原始內容，路徑點擊複製 | `.git/index`、`.git/info/exclude` |
 | 其他設定 Config | `.git/config` 其餘設定，依 section 分組編排，常見鍵名附中文說明 | `.git/config` |
 
@@ -43,7 +42,7 @@ linked worktree 與 submodule 的 `.git` 是指向別處的文字檔，兩者都
 
 ## 使用方式
 
-在底部 Panel 選擇 **forrrk**。工具列右側是六個圖示按鈕——刷新、Push 目前檔案、Auto Push、開啟資料夾、開啟遠端網頁、在 Fork 中開啟，滑鼠停留可看名稱；資訊區以兩欄卡片排列，面板拉窄時自動退回一欄。也可從 Command Palette 執行：
+在底部 Panel 選擇 **forrrk**。工具列右側是六個圖示按鈕——刷新、Push 目前檔案、Auto Push、開啟資料夾、開啟遠端網頁、在 Fork 中開啟，滑鼠停留可看名稱；資訊區的卡片依面板寬度排成一到三欄（560px 以下一欄、940px 以上三欄）。也可從 Command Palette 執行：
 
 | 指令 | 說明 |
 | --- | --- |
@@ -68,7 +67,9 @@ curl -fsSL https://raw.githubusercontent.com/lazyjerry/git-auto-push/refs/heads/
 
 ## Fork 命令列工具
 
-「在 Fork 中開啟」需要 `fork` 指令在 PATH 中。在 Fork 選單列選 **Fork → Install Command Line Tools** 即可安裝；若該選項因 `/usr/local/bin` 權限不足而失敗，本擴充套件會提供等效的手動指令供複製。
+「在 Fork 中開啟」需要 `fork` 命令列工具，偵測順序是 PATH → `/usr/local/bin` → App 內建的 `Fork.app/Contents/Resources/fork_cli`（僅 macOS）。macOS 只要 Fork 裝在 `/Applications` 或 `~/Applications` 就能直接用，不必另外安裝命令列工具；VS Code 從 Finder／Dock 啟動時拿不到 shell 的 PATH，靠這兩道後備才不會誤判成沒裝。
+
+Windows 需要 `fork` 指令在 PATH 中：在 Fork 偏好設定啟用 command line tool 後重開 VS Code。macOS 若 App 內建的執行檔無法使用，會改提示從 Fork 選單列選 **Fork → Install Command Line Tools**；該選項因 `/usr/local/bin` 權限不足而失敗時，本擴充套件會提供等效的手動指令供複製。
 
 Fork 只發行 macOS 與 Windows 版本，其他平台會直接告知不支援。
 
